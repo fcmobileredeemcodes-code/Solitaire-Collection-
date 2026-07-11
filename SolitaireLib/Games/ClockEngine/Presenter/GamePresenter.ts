@@ -8,9 +8,6 @@ import { IGame } from "../Model/IGame";
 const margin = 1;
 
 export class GamePresenter extends GamePresenterBase<IGame> {
-    private sizeY = 20;
-    private sizeX = 20 / 1.555555555555;
-
     private readonly stockPile_: PileView | undefined;
     private readonly wastePile_: PileView | undefined;
     private readonly foundationPiles_: PileView[] = [];
@@ -26,8 +23,6 @@ export class GamePresenter extends GamePresenterBase<IGame> {
 
     constructor(game: IGame, rootView: IView) {
         super(game, rootView);
-
-        this.updateSizes_();
 
         if (game.stock) {
             const pileView = this.createPileView_(game.stock);
@@ -65,22 +60,16 @@ export class GamePresenter extends GamePresenterBase<IGame> {
         this.relayoutAll_();
     }
 
-    private updateSizes_() {
-        // Grandfather's clock layout has clock circle layout on top which has radiusX = sizeX * 1.8, and 8 tableaus below it.
-        // Clock circle can span about 5-6 columns wide, but let's check max width of tableaus, which is 8 columns.
-        const { sizeX, sizeY } = this.calculateCardSize(8, margin);
-        this.sizeX = sizeX;
-        this.sizeY = sizeY;
-    }
-
     protected onResize_() {
-        this.updateSizes_();
         this.layoutPiles_();
         this.relayoutAll_();
     }
 
     private layoutPiles_() {
-        const scale = this.sizeY / 20;
+        const tableSize = this.game_.options.engineMode === "grandfather" ? 8 : 6;
+        const { sizeX, sizeY } = this.calculateCardSize(tableSize, margin);
+
+        const scale = sizeY / 20;
         const scaledMargin = margin * scale;
 
         let vExpand = 1;
@@ -89,8 +78,8 @@ export class GamePresenter extends GamePresenterBase<IGame> {
         }
 
         if (this.game_.options.engineMode === "grandfather") {
-            const radiusX = this.sizeX * 1.8;
-            const radiusY = this.sizeY * 1.5;
+            const radiusX = sizeX * 1.8;
+            const radiusY = sizeY * 1.5;
             
             const clockCenterY = vExpand * -15 * scale;
             
@@ -105,35 +94,34 @@ export class GamePresenter extends GamePresenterBase<IGame> {
                 
                 const pile = this.game_.foundations[i] ?? error();
                 const pileView = this.getPileView_(pile);
-                pileView.rect = new Rect(this.sizeX, this.sizeY, x, y);
+                pileView.rect = new Rect(sizeX, sizeY, x, y);
             }
             
             // Layout 8 tableaus below the clock
-            const tableauStartY = clockCenterY + radiusY + this.sizeY + scaledMargin;
+            const tableauStartY = clockCenterY + radiusY + sizeY + scaledMargin;
             const xPos = (i: number) => {
-                return (i - 0.5 * (8 - 1)) * (this.sizeX + scaledMargin);
+                return (i - 0.5 * (8 - 1)) * (sizeX + scaledMargin);
             };
             for (let i = 0; i < 8; i++) {
                 const pile = this.game_.tableaux[i] ?? error();
                 const pileView = this.getPileView_(pile);
-                pileView.rect = new Rect(this.sizeX, this.sizeY, xPos(i), tableauStartY);
+                pileView.rect = new Rect(sizeX, sizeY, xPos(i), tableauStartY);
                 pileView.fanYDown = 3.5 * scale;
                 pileView.fanYUp = vExpand * 3.5 * scale;
             }
         } else {
             // Simplicity Mode
-            const tableSize = 6;
             const xPos = (i: number) => {
-                return (i - 0.5 * (tableSize - 1)) * (this.sizeX + scaledMargin);
+                return (i - 0.5 * (tableSize - 1)) * (sizeX + scaledMargin);
             };
 
             const topY = vExpand * -35 * scale + scaledMargin;
 
             if (this.game_.stock && this.stockPile_) {
-                this.stockPile_.rect = new Rect(this.sizeX, this.sizeY, xPos(0), topY);
+                this.stockPile_.rect = new Rect(sizeX, sizeY, xPos(0), topY);
             }
             if (this.game_.waste && this.wastePile_) {
-                this.wastePile_.rect = new Rect(this.sizeX, this.sizeY, xPos(1), topY);
+                this.wastePile_.rect = new Rect(sizeX, sizeY, xPos(1), topY);
                 this.wastePile_.fanXUp = 3 * scale;
             }
 
@@ -141,8 +129,8 @@ export class GamePresenter extends GamePresenterBase<IGame> {
                 const pile = this.game_.foundations[i] ?? error();
                 const pileView = this.getPileView_(pile);
                 pileView.rect = new Rect(
-                    this.sizeX,
-                    this.sizeY,
+                    sizeX,
+                    sizeY,
                     xPos(tableSize - this.game_.foundations.length + i),
                     topY
                 );
@@ -152,10 +140,10 @@ export class GamePresenter extends GamePresenterBase<IGame> {
                 const pile = this.game_.tableaux[i] ?? error();
                 const pileView = this.getPileView_(pile);
                 pileView.rect = new Rect(
-                    this.sizeX,
-                    this.sizeY,
+                    sizeX,
+                    sizeY,
                     xPos(i), 
-                    topY + this.sizeY + scaledMargin * 2
+                    topY + sizeY + scaledMargin * 2
                 );
                 pileView.fanYDown = 3.5 * scale;
                 pileView.fanYUp = vExpand * 3.5 * scale;
