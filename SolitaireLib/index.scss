@@ -333,6 +333,22 @@ div#buttons button {
     transform: rotateY(180deg);
 }
 
+.calculationOverlay {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: -2.2rem;
+    text-align: center;
+    font-size: 1.1rem;
+    color: white;
+    background-color: rgba(0, 0, 0, 0.6);
+    border-radius: 0.3rem;
+    padding: 0.15rem;
+    pointer-events: none;
+    z-index: 999;
+    font-weight: bold;
+}
+
 @include cardFaces("bridge3-wider-modern-qr");
 
 @media screen and (max-width: 600px), screen and (max-height: 600px) {
