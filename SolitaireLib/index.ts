@@ -7,6 +7,7 @@ import Pyramid from "~Games/Pyramid/GameInfo";
 import ClockEngine from "~Games/ClockEngine/GameInfo";
 import AcesUp from "~Games/AcesUp/GameInfo";
 import Calculation from "~Games/Calculation/GameInfo";
+import Canfield from "~Games/Canfield/GameInfo";
 
 const gameInfos = new Map<string, IGameInfo>();
 gameInfos.set(Klondike.gameId, Klondike);
@@ -15,6 +16,7 @@ gameInfos.set(Pyramid.gameId, Pyramid);
 gameInfos.set(ClockEngine.gameId, ClockEngine);
 gameInfos.set(AcesUp.gameId, AcesUp);
 gameInfos.set(Calculation.gameId, Calculation);
+gameInfos.set(Canfield.gameId, Canfield);
 
 window.addEventListener("load", () => {
     const tableHolder = document.getElementById("tableHolder") ?? document.body;
