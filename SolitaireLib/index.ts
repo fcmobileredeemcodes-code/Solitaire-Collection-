@@ -15,6 +15,7 @@ import Yukon from "~Games/Yukon/GameInfo";
 import Gypsy from "~Games/Gypsy/GameInfo";
 import Maze from "~Games/Maze/GameInfo";
 import FortyThieves from "~Games/FortyThieves/GameInfo";
+import Spider from "~Games/Spider/GameInfo";
 
 const gameInfos = new Map<string, IGameInfo>();
 gameInfos.set(Klondike.gameId, Klondike);
@@ -31,6 +32,7 @@ gameInfos.set(Yukon.gameId, Yukon);
 gameInfos.set(Gypsy.gameId, Gypsy);
 gameInfos.set(Maze.gameId, Maze);
 gameInfos.set(FortyThieves.gameId, FortyThieves);
+gameInfos.set(Spider.gameId, Spider);
 
 window.addEventListener("load", () => {
     const tableHolder = document.getElementById("tableHolder") ?? document.body;
