@@ -1,5 +1,4 @@
 import { error } from "~CardLib/Debug";
-import * as MathEx from "~CardLib/MathEx";
 import { GamePresenterBase } from "~CardLib/Presenter/GamePresenterBase";
 import { IView } from "~CardLib/View/IView";
 import { PileView } from "~CardLib/View/PileView";
@@ -62,10 +61,8 @@ export class GamePresenter extends GamePresenterBase<IGame> {
 
         let tableSize = this.game_.tableaux.length;
         const margin = 1;
-        let sizeY = 20;
         let pileMove = 0;
         let vExpand = 1;
-        let fExpand = 1;
         let h = true;
 
         if (aspect < 0.77) {
@@ -74,13 +71,10 @@ export class GamePresenter extends GamePresenterBase<IGame> {
         } else {
             pileMove += 1;
             tableSize += 1;
-            if (aspect < 1.12) {
-                sizeY = MathEx.lerp(20, 17.5, MathEx.inverseLerp(1.12, 1, aspect));
-                fExpand = sizeY / 20;
-            }
         }
 
-        const sizeX = sizeY / 1.555555555555;
+        const { sizeX, sizeY } = this.calculateCardSize(tableSize, margin);
+        const fExpand = sizeY / 20;
 
         const xPos = (i: number) => {
             return (i - 0.5 * (tableSize - 1)) * (sizeX + margin);
