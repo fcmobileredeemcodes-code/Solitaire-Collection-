@@ -8,9 +8,6 @@ import { IGame } from "../Model/IGame";
 const margin = 1;
 
 export class GamePresenter extends GamePresenterBase<IGame> {
-    private sizeY = 20;
-    private sizeX = 20 / 1.555555555555;
-
     private readonly tableauPiles_: PileView[] = [];
     private readonly foundationPiles_: PileView[] = [];
 
@@ -24,8 +21,6 @@ export class GamePresenter extends GamePresenterBase<IGame> {
 
     constructor(game: IGame, rootView: IView) {
         super(game, rootView);
-
-        this.updateSizes_();
 
         // create tableaux piles:
         for (let i = 0; i < this.game_.tableaux.length; ++i) {
@@ -52,21 +47,23 @@ export class GamePresenter extends GamePresenterBase<IGame> {
         this.relayoutAll_();
     }
 
-    private updateSizes_() {
-        const { sizeX, sizeY } = this.calculateCardSize(8, margin);
-        this.sizeX = sizeX;
-        this.sizeY = sizeY;
-    }
-
     protected onResize_() {
-        this.updateSizes_();
         this.layoutPiles_();
         this.relayoutAll_();
     }
 
+    /**
+     * Positions all tableau and foundation piles dynamically.
+     * Computes card size using the shared responsive method: calculateCardSize(8, margin).
+     * Preserves Yukon's custom vertical foundation stacking logic using the newly-computed dynamic values.
+     */
     private layoutPiles_() {
         const tableSize = 8;
-        const scale = this.sizeY / 20;
+
+        // Call the shared responsive sizing method, passing correct max-column count (8 columns)
+        const { sizeX, sizeY } = this.calculateCardSize(tableSize, margin);
+
+        const scale = sizeY / 20;
         const scaledMargin = margin * scale;
 
         let vExpand = 1;
@@ -74,7 +71,7 @@ export class GamePresenter extends GamePresenterBase<IGame> {
             vExpand = 1.5;
         }
         const xPos = (colIndex: number) => {
-            return (colIndex - 0.5 * (tableSize - 1)) * (this.sizeX + scaledMargin);
+            return (colIndex - 0.5 * (tableSize - 1)) * (sizeX + scaledMargin);
         };
 
         const topY = vExpand * -35 * scale + scaledMargin;
@@ -83,7 +80,7 @@ export class GamePresenter extends GamePresenterBase<IGame> {
         for (let i = 0; i < this.game_.tableaux.length; ++i) {
             const pile = this.game_.tableaux[i] ?? error();
             const pileView = this.getPileView_(pile);
-            pileView.rect = new Rect(this.sizeX, this.sizeY, xPos(i), topY);
+            pileView.rect = new Rect(sizeX, sizeY, xPos(i), topY);
             pileView.fanYDown = 3.5 * scale;
             pileView.fanYUp = vExpand * 3.5 * scale;
         }
@@ -92,14 +89,16 @@ export class GamePresenter extends GamePresenterBase<IGame> {
         {
             const pile = this.game_.foundations[0] ?? error();
             const pileView = this.getPileView_(pile);
-            pileView.rect = new Rect(this.sizeX, this.sizeY, xPos(7), topY);
+            pileView.rect = new Rect(sizeX, sizeY, xPos(7), topY);
         }
 
-        // Foundations 8-10 (Foundations 1-3) positioned vertically directly underneath Stack 7
+        // Foundations 8-10 (Foundations 1-3) positioned vertically directly underneath Stack 7.
+        // We preserve Yukon's vertical stacking logic: topY + i * (sizeY + margin)
+        // using the newly-computed dynamic sizeY and dynamic scaled margin.
         for (let i = 1; i < this.game_.foundations.length; ++i) {
             const pile = this.game_.foundations[i] ?? error();
             const pileView = this.getPileView_(pile);
-            pileView.rect = new Rect(this.sizeX, this.sizeY, xPos(7), topY + i * (this.sizeY + scaledMargin));
+            pileView.rect = new Rect(sizeX, sizeY, xPos(7), topY + i * (sizeY + scaledMargin));
         }
     }
 }
