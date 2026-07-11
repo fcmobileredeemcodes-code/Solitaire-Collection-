@@ -10,6 +10,7 @@ import Calculation from "~Games/Calculation/GameInfo";
 import Canfield from "~Games/Canfield/GameInfo";
 import FortyEight from "~Games/FortyEight/GameInfo";
 import Freecell from "~Games/Freecell/GameInfo";
+import Yukon from "~Games/Yukon/GameInfo";
 
 const gameInfos = new Map<string, IGameInfo>();
 gameInfos.set(Klondike.gameId, Klondike);
@@ -21,6 +22,7 @@ gameInfos.set(Calculation.gameId, Calculation);
 gameInfos.set(Canfield.gameId, Canfield);
 gameInfos.set(FortyEight.gameId, FortyEight);
 gameInfos.set(Freecell.gameId, Freecell);
+gameInfos.set(Yukon.gameId, Yukon);
 
 window.addEventListener("load", () => {
     const tableHolder = document.getElementById("tableHolder") ?? document.body;
