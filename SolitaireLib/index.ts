@@ -14,6 +14,7 @@ import Freecell from "~Games/Freecell/GameInfo";
 import Yukon from "~Games/Yukon/GameInfo";
 import Gypsy from "~Games/Gypsy/GameInfo";
 import Maze from "~Games/Maze/GameInfo";
+import FortyThieves from "~Games/FortyThieves/GameInfo";
 
 const gameInfos = new Map<string, IGameInfo>();
 gameInfos.set(Klondike.gameId, Klondike);
@@ -29,6 +30,7 @@ gameInfos.set(Freecell.gameId, Freecell);
 gameInfos.set(Yukon.gameId, Yukon);
 gameInfos.set(Gypsy.gameId, Gypsy);
 gameInfos.set(Maze.gameId, Maze);
+gameInfos.set(FortyThieves.gameId, FortyThieves);
 
 window.addEventListener("load", () => {
     const tableHolder = document.getElementById("tableHolder") ?? document.body;
