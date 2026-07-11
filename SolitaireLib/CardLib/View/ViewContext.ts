@@ -17,6 +17,7 @@ export class ViewContext {
         this.element_ = element;
 
         window.addEventListener("resize", this.onResize_);
+        window.addEventListener("orientationchange", this.onResize_);
 
         window.addEventListener("mousemove", this.onWindowMouseMove_);
         window.addEventListener("mouseup", this.onWindowMouseUp_);

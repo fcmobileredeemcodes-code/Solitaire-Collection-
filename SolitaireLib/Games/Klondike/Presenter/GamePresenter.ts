@@ -6,10 +6,11 @@ import { Rect } from "~CardLib/View/Rect";
 import { IGame } from "../Model/IGame";
 
 const margin = 1;
-const sizeY = 20;
-const sizeX = sizeY / 1.555555555555;
 
 export class GamePresenter extends GamePresenterBase<IGame> {
+    private sizeY = 20;
+    private sizeX = 20 / 1.555555555555;
+
     private readonly stockPile_: PileView;
     private readonly wastePile_: PileView;
     private readonly foundationPiles_: PileView[] = [];
@@ -26,6 +27,8 @@ export class GamePresenter extends GamePresenterBase<IGame> {
     constructor(game: IGame, rootView: IView) {
         super(game, rootView);
 
+        this.updateSizes_();
+
         // create piles:
         {
             const pileView = this.createPileView_(game.stock);
@@ -36,7 +39,6 @@ export class GamePresenter extends GamePresenterBase<IGame> {
             const pileView = this.createPileView_(game.waste);
             pileView.showFrame = true;
             pileView.zIndex = 50;
-            pileView.fanXUp = 3;
             this.wastePile_ = pileView;
         }
         for (let i = 0; i < this.game_.foundations.length; ++i) {
@@ -61,48 +63,60 @@ export class GamePresenter extends GamePresenterBase<IGame> {
         this.relayoutAll_();
     }
 
+    private updateSizes_() {
+        const { sizeX, sizeY } = this.calculateCardSize(7, margin);
+        this.sizeX = sizeX;
+        this.sizeY = sizeY;
+    }
+
     protected onResize_() {
+        this.updateSizes_();
         this.layoutPiles_();
         this.relayoutAll_();
     }
 
     private layoutPiles_() {
         const tableSize = this.game_.tableaux.length;
+        const scale = this.sizeY / 20;
+        const scaledMargin = margin * scale;
 
         let vExpand = 1;
         if (window.matchMedia("screen and (max-aspect-ratio: 100/130)").matches) {
             vExpand = 1.5;
         }
         const xPos = (i: number) => {
-            return (i - 0.5 * (tableSize - 1)) * (sizeX + margin);
+            return (i - 0.5 * (tableSize - 1)) * (this.sizeX + scaledMargin);
         };
+
+        const yTop = vExpand * -35 * scale + scaledMargin;
 
         {
             const pile = this.game_.stock;
             const pileView = this.getPileView_(pile);
-            pileView.rect = new Rect(sizeX, sizeY, xPos(0), vExpand * -35 + margin);
+            pileView.rect = new Rect(this.sizeX, this.sizeY, xPos(0), yTop);
         }
         {
             const pile = this.game_.waste;
             const pileView = this.getPileView_(this.game_.waste);
-            pileView.rect = new Rect(sizeX, sizeY, xPos(1), vExpand * -35 + margin);
+            pileView.rect = new Rect(this.sizeX, this.sizeY, xPos(1), yTop);
+            pileView.fanXUp = 3 * scale;
         }
         for (let i = 0; i < this.game_.foundations.length; ++i) {
             const pile = this.game_.foundations[i] ?? error();
             const pileView = this.getPileView_(pile);
             pileView.rect = new Rect(
-                sizeX,
-                sizeY,
+                this.sizeX,
+                this.sizeY,
                 xPos(tableSize - this.game_.foundations.length + i),
-                vExpand * -35 + margin
+                yTop
             );
         }
         for (let i = 0; i < this.game_.tableaux.length; ++i) {
             const pile = this.game_.tableaux[i] ?? error();
             const pileView = this.getPileView_(pile);
-            pileView.rect = new Rect(sizeX, sizeY, xPos(i), vExpand * -35 + margin + margin + sizeY + margin);
-            pileView.fanYDown = 3.5;
-            pileView.fanYUp = vExpand * 3.5;
+            pileView.rect = new Rect(this.sizeX, this.sizeY, xPos(i), yTop + scaledMargin + this.sizeY + scaledMargin);
+            pileView.fanYDown = 3.5 * scale;
+            pileView.fanYUp = vExpand * 3.5 * scale;
         }
     }
 }

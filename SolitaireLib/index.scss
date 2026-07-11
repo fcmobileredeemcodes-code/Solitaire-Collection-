@@ -196,9 +196,11 @@ div#buttons button {
     position: absolute;
     left: 0;
     right: 0;
+    width: 100%;
     bottom: 0;
     top: 0;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: hidden;
 }
 
 .gameScore {

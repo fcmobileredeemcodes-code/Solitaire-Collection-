@@ -44,6 +44,7 @@ export abstract class GamePresenterBase<TGame extends IGameBase> implements IGam
         this.undoButton_?.addEventListener("click", this.onUndoButtonClick_);
         this.redoButton_?.addEventListener("click", this.onRedoButtonClick_);
         window.addEventListener("resize", this.onWindowResize_);
+        window.addEventListener("orientationchange", this.onWindowResize_);
         window.addEventListener("keydown", this.onWindowKeyDown_);
     }
 
@@ -53,6 +54,7 @@ export abstract class GamePresenterBase<TGame extends IGameBase> implements IGam
         this.undoButton_?.removeEventListener("click", this.onUndoButtonClick_);
         this.redoButton_?.removeEventListener("click", this.onRedoButtonClick_);
         window.removeEventListener("resize", this.onWindowResize_);
+        window.removeEventListener("orientationchange", this.onWindowResize_);
         window.removeEventListener("keydown", this.onWindowKeyDown_);
     }
 
@@ -459,5 +461,35 @@ export abstract class GamePresenterBase<TGame extends IGameBase> implements IGam
                 await new Promise((resolve) => setTimeout(resolve, speedUp * 400));
                 return;
         }
+    }
+
+    protected calculateCardSize(maxColumns: number, margin = 1): { sizeX: number; sizeY: number } {
+        const clientWidth = this.rootView_.element.clientWidth;
+        const pxPerRem = this.rootView_.context.pxPerRem;
+
+        if (!pxPerRem || isNaN(pxPerRem) || !isFinite(pxPerRem) || clientWidth <= 0) {
+            return { sizeY: 20, sizeX: 20 / 1.5555555555555 };
+        }
+
+        // Convert clientWidth (pixels) to em by dividing by the fontSize in pixels (which is 1 / pxPerRem)
+        const fontSizeInPx = 1 / pxPerRem;
+        const W_em = clientWidth / fontSizeInPx;
+
+        // Apply a safety padding of 6.0em (3.0em on each side) to give the board breathing room and prevent overflow
+        const padding = 6.0;
+        const availableW = Math.max(0, W_em - padding);
+
+        const factor = 1.5555555555555;
+        let sizeY = ((availableW - (maxColumns - 1) * margin) * factor) / maxColumns;
+
+        if (sizeY > 20) {
+            sizeY = 20;
+        }
+        if (sizeY < 5) {
+            sizeY = 5;
+        }
+
+        const sizeX = sizeY / factor;
+        return { sizeX, sizeY };
     }
 }
