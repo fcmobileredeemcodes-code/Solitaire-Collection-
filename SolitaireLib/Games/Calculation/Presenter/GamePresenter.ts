@@ -7,12 +7,12 @@ import { Rank } from "~CardLib/Model/Rank";
 import { IGame } from "../Model/IGame";
 import { Game } from "../Model/Game";
 
-const scale = 0.3; // shrink the viewport footprint
-const margin = 1 * scale;
-const sizeY = 20 * scale;
-const sizeX = sizeY / 1.555555555555;
+const margin = 1;
 
 export class GamePresenter extends GamePresenterBase<IGame> {
+    private sizeY = 20;
+    private sizeX = 20 / 1.555555555555;
+
     private readonly stockPile_: PileView;
     private readonly wastePile_: PileView;
     private readonly foundationPiles_: PileView[] = [];
@@ -29,6 +29,8 @@ export class GamePresenter extends GamePresenterBase<IGame> {
 
     constructor(game: IGame, rootView: IView) {
         super(game, rootView);
+
+        this.updateSizes_();
 
         // create tableaux piles: Stacks 0, 1, 2, 3
         for (let i = 0; i < this.game_.tableaux.length; ++i) {
@@ -88,7 +90,14 @@ export class GamePresenter extends GamePresenterBase<IGame> {
         }
     }
 
+    private updateSizes_() {
+        const { sizeX, sizeY } = this.calculateCardSize(7, margin);
+        this.sizeX = sizeX;
+        this.sizeY = sizeY;
+    }
+
     protected onResize_() {
+        this.updateSizes_();
         this.layoutPiles_();
         this.relayoutAll_();
     }
@@ -129,6 +138,8 @@ export class GamePresenter extends GamePresenterBase<IGame> {
 
     private layoutPiles_() {
         const tableSize = 7; // framework layout size
+        const scale = this.sizeY / 20;
+        const scaledMargin = margin * scale;
 
         let vExpand = 1;
         if (window.matchMedia("screen and (max-aspect-ratio: 100/130)").matches) {
@@ -136,25 +147,34 @@ export class GamePresenter extends GamePresenterBase<IGame> {
         }
 
         const xPos = (colIndex: number) => {
-            return (colIndex - 0.5 * (tableSize - 1)) * (sizeX + margin);
+            return (colIndex - 0.5 * (tableSize - 1)) * (this.sizeX + scaledMargin);
         };
 
         // Vertically center the 2-row layout elegantly:
-        const topY = vExpand * -10;
-        const bottomY = topY + sizeY + 3;
+        const topY = vExpand * -8 * scale;
+        const bottomY = topY + this.sizeY + 3 * scale;
 
         // Row 1 (Top): Foundations 4, 5, 6, 7 aligned horizontally in columns 0, 1, 2, 3
         for (let i = 0; i < this.game_.foundations.length; ++i) {
             const pile = this.game_.foundations[i] ?? error();
             const pileView = this.getPileView_(pile);
-            pileView.rect = new Rect(sizeX, sizeY, xPos(i), topY);
+            pileView.rect = new Rect(this.sizeX, this.sizeY, xPos(i), topY);
+
+            // Update overlay layout to scale proportionally with card height
+            const overlay = this.overlays_[i];
+            if (overlay) {
+                overlay.style.top = `${(-11 / 30) * this.sizeY}em`;
+                overlay.style.fontSize = `${(11 / 60) * this.sizeY}em`;
+                overlay.style.borderRadius = `${0.05 * this.sizeY}em`;
+                overlay.style.padding = `${0.025 * this.sizeY}em`;
+            }
         }
 
         // Row 2 (Bottom): Tableau 0, 1, 2, 3 in columns 0, 1, 2, 3
         for (let i = 0; i < this.game_.tableaux.length; ++i) {
             const pile = this.game_.tableaux[i] ?? error();
             const pileView = this.getPileView_(pile);
-            pileView.rect = new Rect(sizeX, sizeY, xPos(i), bottomY);
+            pileView.rect = new Rect(this.sizeX, this.sizeY, xPos(i), bottomY);
             pileView.fanYDown = 3.5 * scale;
             pileView.fanYUp = vExpand * 3.5 * scale;
         }
@@ -163,7 +183,7 @@ export class GamePresenter extends GamePresenterBase<IGame> {
         {
             const pile = this.game_.waste;
             const pileView = this.getPileView_(pile);
-            pileView.rect = new Rect(sizeX, sizeY, xPos(4), bottomY);
+            pileView.rect = new Rect(this.sizeX, this.sizeY, xPos(4), bottomY);
             pileView.fanYDown = 3.5 * scale;
             pileView.fanYUp = vExpand * 3.5 * scale;
         }
@@ -172,7 +192,7 @@ export class GamePresenter extends GamePresenterBase<IGame> {
         {
             const pile = this.game_.stock;
             const pileView = this.getPileView_(pile);
-            pileView.rect = new Rect(sizeX, sizeY, xPos(5), bottomY);
+            pileView.rect = new Rect(this.sizeX, this.sizeY, xPos(5), bottomY);
         }
     }
 }
