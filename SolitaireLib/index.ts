@@ -16,6 +16,7 @@ import Gypsy from "~Games/Gypsy/GameInfo";
 import Maze from "~Games/Maze/GameInfo";
 import FortyThieves from "~Games/FortyThieves/GameInfo";
 import Spider from "~Games/Spider/GameInfo";
+import TriPeaks from "~Games/TriPeaks/GameInfo";
 
 const gameInfos = new Map<string, IGameInfo>();
 gameInfos.set(Klondike.gameId, Klondike);
@@ -33,6 +34,7 @@ gameInfos.set(Gypsy.gameId, Gypsy);
 gameInfos.set(Maze.gameId, Maze);
 gameInfos.set(FortyThieves.gameId, FortyThieves);
 gameInfos.set(Spider.gameId, Spider);
+gameInfos.set(TriPeaks.gameId, TriPeaks);
 
 window.addEventListener("load", () => {
     const tableHolder = document.getElementById("tableHolder") ?? document.body;
