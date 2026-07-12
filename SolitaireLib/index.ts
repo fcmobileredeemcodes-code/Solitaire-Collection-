@@ -2,6 +2,7 @@ import * as Debug from "~CardLib/Debug";
 import { IGameInfo } from "~CardLib/IGameInfo";
 import { IGamePresenter } from "~CardLib/Presenter/IGamePresenter";
 import Klondike from "~Games/Klondike/GameInfo";
+import Cruel from "~Games/Cruel/GameInfo";
 import KlondikeEx from "~Games/KlondikeEx/GameInfo";
 import Agnes from "~Games/Agnes/GameInfo";
 import AustralianPatience from "~Games/AustralianPatience/GameInfo";
@@ -38,6 +39,7 @@ import Westcliff from "~Games/Westcliff/GameInfo";
 
 const gameInfos = new Map<string, IGameInfo>();
 gameInfos.set(Westcliff.gameId, Westcliff);
+gameInfos.set(Cruel.gameId, Cruel);
 gameInfos.set(BeleagueredCastle.gameId, BeleagueredCastle);
 gameInfos.set(StreetsAndAlleys.gameId, StreetsAndAlleys);
 gameInfos.set(Klondike.gameId, Klondike);
