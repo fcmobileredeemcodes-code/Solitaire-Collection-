@@ -33,6 +33,7 @@ import BeleagueredCastle from "~Games/BeleagueredCastle/GameInfo";
 import StreetsAndAlleys from "~Games/StreetsAndAlleys/GameInfo";
 import Sultan from "~Games/Sultan/GameInfo";
 import Terrace from "~Games/Terrace/GameInfo";
+import Accordion from "~Games/Accordion/GameInfo";
 
 const gameInfos = new Map<string, IGameInfo>();
 gameInfos.set(BeleagueredCastle.gameId, BeleagueredCastle);
@@ -67,6 +68,7 @@ gameInfos.set(Scorpion.gameId, Scorpion);
 gameInfos.set(SimpleSimon.gameId, SimpleSimon);
 gameInfos.set(Sultan.gameId, Sultan);
 gameInfos.set(Terrace.gameId, Terrace);
+gameInfos.set(Accordion.gameId, Accordion);
 
 window.addEventListener("load", () => {
     const tableHolder = document.getElementById("tableHolder") ?? document.body;
