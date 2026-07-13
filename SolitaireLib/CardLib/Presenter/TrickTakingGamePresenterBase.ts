@@ -136,12 +136,24 @@ export abstract class TrickTakingGamePresenterBase<TGame extends TrickTakingGame
             this.cardToCardView_.set(card, cv);
         }
 
-        const seats: ("South" | "West" | "North" | "East")[] = ["South", "West", "North", "East"];
-        for (let i = 0; i < 4; ++i) {
+        const numPlayers = this.game_.players.length;
+        for (let i = 0; i < numPlayers; ++i) {
             const player = this.game_.players[i];
-            const av = new AvatarView(this.rootView_, player, seats[i]);
+            const seat = this.getSeatForPlayer_(i, numPlayers);
+            const av = new AvatarView(this.rootView_, player, seat);
             this.avatarViews_.push(av);
         }
+    }
+
+    protected getSeatForPlayer_(index: number, numPlayers: number): "South" | "West" | "North" | "East" {
+        if (numPlayers === 3) {
+            // For 3 players: Human is South (0), left is West (1), right is East (2). No North player.
+            const seats3: ("South" | "West" | "East")[] = ["South", "West", "East"];
+            return seats3[index] || "South";
+        }
+        // Default 4 players: South (0), West (1), North (2), East (3)
+        const seats4: ("South" | "West" | "North" | "East")[] = ["South", "West", "North", "East"];
+        return seats4[index] || "South";
     }
 
     private cardPrimary_(card: ICard) {
@@ -242,8 +254,16 @@ export abstract class TrickTakingGamePresenterBase<TGame extends TrickTakingGame
         // Position hand piles and played piles using CENTERED coordinate system: (0,0) is screen center
         const playedOffset = cardHeight * 0.75;
 
-        // Pile Rects - Correct Parameter Order: new Rect(sizeX, sizeY, x, y)
-        // x and y represent the offset from the screen center.
+        const numPlayers = this.game_.players.length;
+
+        // Visual position mapping index based on seat
+        const seatMapping = {
+            "South": 0,
+            "West": 1,
+            "North": 2,
+            "East": 3,
+        };
+
         const handPositions = [
             new Rect(cardWidth * 7, cardHeight, 0, heightRem / 2 - cardHeight / 2 - 1.5), // South (Human Hand)
             new Rect(cardWidth, cardHeight * 4, -widthRem / 2 + cardWidth / 2 + 1.5, 0), // West Hand
@@ -259,19 +279,21 @@ export abstract class TrickTakingGamePresenterBase<TGame extends TrickTakingGame
         ];
 
         // Layout PileViews
-        for (let i = 0; i < 4; ++i) {
+        for (let i = 0; i < numPlayers; ++i) {
             const handPile = this.game_.handPiles[i];
             const playedPile = this.game_.playedPiles[i];
+            const seat = this.getSeatForPlayer_(i, numPlayers);
+            const posIdx = seatMapping[seat];
 
             if (handPile) {
                 const pv = this.getPileView_(handPile);
-                pv.rect = handPositions[i];
-                this.layoutHand_(handPile, pv, i, cardWidth, cardHeight);
+                pv.rect = handPositions[posIdx];
+                this.layoutHand_(handPile, pv, posIdx, cardWidth, cardHeight);
             }
 
             if (playedPile) {
                 const pv = this.getPileView_(playedPile);
-                pv.rect = playedPositions[i];
+                pv.rect = playedPositions[posIdx];
                 this.layoutPlayed_(playedPile, pv, cardWidth, cardHeight);
             }
         }
@@ -298,13 +320,15 @@ export abstract class TrickTakingGamePresenterBase<TGame extends TrickTakingGame
             { x: widthRem - 11.5, y: cy - cardHeight / 2 - 4.5 }, // East Avatar
         ];
 
-        for (let i = 0; i < 4; ++i) {
+        for (let i = 0; i < numPlayers; ++i) {
             const av = this.avatarViews_[i];
             const player = this.game_.players[i];
+            const seat = this.getSeatForPlayer_(i, numPlayers);
+            const posIdx = seatMapping[seat];
 
             // Set position
-            av.element.style.left = `${avatarPositions[i].x}rem`;
-            av.element.style.top = `${avatarPositions[i].y}rem`;
+            av.element.style.left = `${avatarPositions[posIdx].x}rem`;
+            av.element.style.top = `${avatarPositions[posIdx].y}rem`;
 
             // Status details
             const lockupLeft = this.game_.skippedTricks ? this.game_.skippedTricks[i] : 0;
@@ -461,8 +485,9 @@ export abstract class TrickTakingGamePresenterBase<TGame extends TrickTakingGame
 
     private async onGameWonChanged_() {
         if (this.game_.won) {
+            const numPlayers = this.game_.players.length;
             const winningScore = this.game_.winningScore;
-            for (let i = 0; i < 4; ++i) {
+            for (let i = 0; i < numPlayers; ++i) {
                 const player = this.game_.players[i];
                 const score = this.game_.scoreTracker.getScore(player);
                 if (score >= winningScore) {

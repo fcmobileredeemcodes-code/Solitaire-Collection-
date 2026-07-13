@@ -25,8 +25,8 @@ export abstract class TrickTakingGameBase extends GameBase {
     public roundStarterIndex = 0;
     public trumpSuit: Suit = Suit.None;
     public roundNumber = 0;
-    public skippedTricks: number[] = [0, 0, 0, 0];
-    public sittingOutThisTrick: boolean[] = [false, false, false, false];
+    public skippedTricks: number[] = [];
+    public sittingOutThisTrick: boolean[] = [];
 
     // Status
     public waitingForHumanPlay = false;
@@ -40,7 +40,7 @@ export abstract class TrickTakingGameBase extends GameBase {
     // Generator-based turn loop state
     protected turnLoopGenerator: Generator<DelayHint, void> | null = null;
 
-    constructor() {
+    constructor(numPlayers = 4) {
         super();
         this.scoreTracker = new ScoreTracker("player");
 
@@ -48,17 +48,20 @@ export abstract class TrickTakingGameBase extends GameBase {
         this.deckPile = new Pile(this);
         this.piles.push(this.deckPile);
 
-        for (let i = 0; i < 4; ++i) {
+        for (let i = 0; i < numPlayers; ++i) {
             const hand = new Pile(this);
             this.handPiles.push(hand);
             this.piles.push(hand);
         }
 
-        for (let i = 0; i < 4; ++i) {
+        for (let i = 0; i < numPlayers; ++i) {
             const played = new Pile(this);
             this.playedPiles.push(played);
             this.piles.push(played);
         }
+
+        this.skippedTricks = Array(numPlayers).fill(0);
+        this.sittingOutThisTrick = Array(numPlayers).fill(false);
 
         // Create standard deck cards
         this.cards = createStandard52Deck(this.deckPile);
@@ -86,10 +89,11 @@ export abstract class TrickTakingGameBase extends GameBase {
 
     // Move to next round
     protected *startNewRound_(rng: prand.RandomGenerator): Generator<DelayHint, void> {
+        const numPlayers = this.players.length || 4;
         this.scoreTracker.resetTricks();
         this.currentTrick = [];
-        this.skippedTricks = [0, 0, 0, 0];
-        this.sittingOutThisTrick = [false, false, false, false];
+        this.skippedTricks = Array(numPlayers).fill(0);
+        this.sittingOutThisTrick = Array(numPlayers).fill(false);
 
         // Clear played piles if any leftovers
         for (const pile of this.playedPiles) {
@@ -115,7 +119,7 @@ export abstract class TrickTakingGameBase extends GameBase {
 
         // Deal 13 cards to each player
         for (let r = 0; r < 13; ++r) {
-            for (let i = 0; i < 4; ++i) {
+            for (let i = 0; i < numPlayers; ++i) {
                 const card = this.deckPile.peek();
                 if (card) {
                     this.handPiles[i].push(card);
@@ -127,7 +131,7 @@ export abstract class TrickTakingGameBase extends GameBase {
         }
 
         // Sort human player's hand for better readability:
-        for (let i = 0; i < 4; ++i) {
+        for (let i = 0; i < numPlayers; ++i) {
             if (this.players[i].isHuman) {
                 this.handPiles[i].sort();
             }
@@ -136,10 +140,10 @@ export abstract class TrickTakingGameBase extends GameBase {
         // Determine starter of the round:
         if (this.roundNumber === 1) {
             // first leader is random:
-            this.roundStarterIndex = Math.floor(Math.random() * 4);
+            this.roundStarterIndex = Math.floor(Math.random() * numPlayers);
         } else {
             // player to the left of previous round's starter leads (clockwise)
-            this.roundStarterIndex = (this.roundStarterIndex + 1) % 4;
+            this.roundStarterIndex = (this.roundStarterIndex + 1) % numPlayers;
         }
 
         this.currentLeaderIndex = this.roundStarterIndex;
@@ -156,10 +160,11 @@ export abstract class TrickTakingGameBase extends GameBase {
 
     // Trick play sequence loop
     protected *runTurnLoop_(): Generator<DelayHint, void> {
+        const numPlayers = this.players.length || 4;
         while (!this.won) {
             if (this.currentTrick.length === 0) {
                 // Initialize trick skipped status!
-                for (let i = 0; i < 4; ++i) {
+                for (let i = 0; i < numPlayers; ++i) {
                     if (this.skippedTricks[i] > 0) {
                         this.sittingOutThisTrick[i] = true;
                         // Discard a random card from hand:
@@ -177,13 +182,13 @@ export abstract class TrickTakingGameBase extends GameBase {
                 }
             }
 
-            // Trick plays: 13 tricks in a round
+            // Trick plays: expected trick size
             const expectedTrickSize = this.players.filter((_, idx) => !this.sittingOutThisTrick[idx]).length;
             if (expectedTrickSize === 0) {
-                // All 4 players are locked up! Decrement lockups and move on
+                // All players are locked up! Decrement lockups and move on
                 yield DelayHint.Settle;
                 this.gameLog.push("All players are locked up! Skipping this trick.");
-                for (let i = 0; i < 4; ++i) {
+                for (let i = 0; i < numPlayers; ++i) {
                     if (this.sittingOutThisTrick[i]) {
                         this.skippedTricks[i]--;
                         if (this.skippedTricks[i] < 0) {
@@ -209,7 +214,7 @@ export abstract class TrickTakingGameBase extends GameBase {
 
             while (this.currentTrick.length < expectedTrickSize) {
                 if (this.sittingOutThisTrick[this.activePlayerIndex]) {
-                    this.activePlayerIndex = (this.activePlayerIndex + 1) % 4;
+                    this.activePlayerIndex = (this.activePlayerIndex + 1) % numPlayers;
                     continue;
                 }
                 const currentPlayer = this.players[this.activePlayerIndex];
@@ -357,6 +362,7 @@ export abstract class TrickTakingGameBase extends GameBase {
     }
 
     protected *playCard_(card: Card, player: IPlayer): Generator<DelayHint, void> {
+        const numPlayers = this.players.length || 4;
         const playerIndex = this.players.indexOf(player);
         const playedPile = this.playedPiles[playerIndex];
 
@@ -367,7 +373,7 @@ export abstract class TrickTakingGameBase extends GameBase {
         this.gameLog.push(`${player.name} played ${this.getCardName_(card)}`);
 
         // Move active turn clockwise
-        this.activePlayerIndex = (this.activePlayerIndex + 1) % 4;
+        this.activePlayerIndex = (this.activePlayerIndex + 1) % numPlayers;
     }
 
     protected getCardName_(card: Card): string {
@@ -390,6 +396,7 @@ export abstract class TrickTakingGameBase extends GameBase {
     }
 
     protected *evaluateTrickWinner_(): Generator<DelayHint, void> {
+        const numPlayers = this.players.length || 4;
         const expectedTrickSize = this.players.filter((_, idx) => !this.sittingOutThisTrick[idx]).length;
         if (this.currentTrick.length < expectedTrickSize || expectedTrickSize === 0) return;
 
@@ -419,7 +426,7 @@ export abstract class TrickTakingGameBase extends GameBase {
         }
 
         // Decrement skipped counters for players who sat out this trick:
-        for (let i = 0; i < 4; ++i) {
+        for (let i = 0; i < numPlayers; ++i) {
             if (this.sittingOutThisTrick[i]) {
                 this.skippedTricks[i]--;
                 if (this.skippedTricks[i] < 0) {
@@ -535,11 +542,12 @@ export abstract class TrickTakingGameBase extends GameBase {
                 }
             }
 
+            const numPlayers = this.players.length || 4;
             this.currentTrick = [];
-            for (let i = 0; i < 4; ++i) {
+            for (let i = 0; i < numPlayers; ++i) {
                 const player = this.players[i];
                 const playedPile = this.playedPiles[i];
-                if (playedPile.length > 0) {
+                if (playedPile && playedPile.length > 0) {
                     const card = playedPile.at(0);
                     this.currentTrick.push({ player, card });
                 }
