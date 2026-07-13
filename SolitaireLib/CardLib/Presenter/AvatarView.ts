@@ -64,13 +64,18 @@ export class AvatarView implements IView {
         parent.element.appendChild(this.element);
     }
 
-    public updateStatus(tricks: number, score: number, skippedTricks?: number) {
-        let text = `Tricks: ${tricks} | Score: ${score}`;
+    public updateStatus(tricks: number, score: number, skippedTricks?: number, bid?: number | null) {
+        let text = "";
+        if (bid !== undefined && bid !== null) {
+            text = `Bid: ${bid} | Won: ${tricks}<br/>Score: ${score}`;
+        } else {
+            text = `Tricks: ${tricks} | Score: ${score}`;
+        }
         if (skippedTricks && skippedTricks > 0) {
             text += `<br/><span style="color: #ff4d4d; font-weight: bold; animation: pulse 1.5s infinite;">Locked up: ${skippedTricks} left</span>`;
             this.statusElement_.innerHTML = text;
         } else {
-            this.statusElement_.textContent = text;
+            this.statusElement_.innerHTML = text;
         }
     }
 
