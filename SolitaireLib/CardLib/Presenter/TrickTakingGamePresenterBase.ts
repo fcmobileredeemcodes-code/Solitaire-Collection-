@@ -23,14 +23,14 @@ export abstract class TrickTakingGamePresenterBase<TGame extends TrickTakingGame
     private readonly undoButton_ = document.getElementById("undoButton");
     private readonly redoButton_ = document.getElementById("redoButton");
 
-    private cardViews_: CardView[] = [];
-    private cardToCardView_ = new Map<ICard, CardView>();
-    private pileViews_: PileView[] = [];
-    private pileToPileView_ = new Map<IPile, PileView>();
+    protected cardViews_: CardView[] = [];
+    protected cardToCardView_ = new Map<ICard, CardView>();
+    protected pileViews_: PileView[] = [];
+    protected pileToPileView_ = new Map<IPile, PileView>();
 
     protected avatarViews_: AvatarView[] = [];
-    private centerStatusPanel_!: HTMLElement;
-    private logPanel_!: HTMLElement;
+    protected centerStatusPanel_!: HTMLElement;
+    protected logPanel_!: HTMLElement;
 
     constructor(game: TGame, rootView: IView) {
         this.game_ = game;
