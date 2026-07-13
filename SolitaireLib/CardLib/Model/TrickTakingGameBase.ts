@@ -384,9 +384,8 @@ export abstract class TrickTakingGameBase extends GameBase {
         yield* this.playCard_(card, humanPlayer);
         this.waitingForHumanPlay = false;
 
-        if (this.turnLoopGenerator) {
-            yield* this.turnLoopGenerator;
-        }
+        this.turnLoopGenerator = this.runTurnLoop_();
+        yield* this.turnLoopGenerator;
     }
 
     protected override *cardSecondary_(card: Card): Generator<DelayHint, void> {

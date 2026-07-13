@@ -98,6 +98,50 @@ describe('Whist Game Model', () => {
         expect((game as any).compareCards_(c3, c2, Suit.Spades)).toBeGreaterThan(0);
     });
 
+    it('should correctly progress the turn loop after the human plays a card without stalling', () => {
+        // Run a clean game start
+        const restartGen = game.restart(12345);
+        let res = restartGen.next();
+        while (!res.done) {
+            res = restartGen.next();
+        }
+
+        // Check if game is waiting for human play.
+        // Since we may start with an AI player, let's step the generator if it isn't waiting yet
+        if (!game.waitingForHumanPlay) {
+            // Wait, game should be waiting because startNewRound_ ran the turn loop up to human play.
+        }
+
+        expect(game.waitingForHumanPlay).toBe(true);
+
+        const southHand = game.handPiles[0];
+        const legalCards = game.getLegalCards_(southHand);
+        expect(legalCards.length).toBeGreaterThan(0);
+
+        const cardToPlay = legalCards[0];
+
+        // Human plays the card (calling cardPrimary via generator)
+        const playGen = game.cardPrimary(cardToPlay);
+        let playRes = playGen.next();
+        while (!playRes.done) {
+            playRes = playGen.next();
+        }
+
+        // After human plays, waitingForHumanPlay should become false or true again (if we are at the next human turn, which could happen if AIs play their turns super fast)
+        // More importantly, the activePlayerIndex should have progressed, and game log should contain plays.
+        const humanPlayedLog = game.gameLog.find(log => log.includes("You played"));
+        expect(humanPlayedLog).toBeDefined();
+
+        // Check that at least one AI player has also played, meaning the turn loop did not stall
+        const westPlayedLog = game.gameLog.find(log => log.includes("AI West played"));
+        const eastPlayedLog = game.gameLog.find(log => log.includes("AI East played"));
+        const partnerPlayedLog = game.gameLog.find(log => log.includes("AI Partner played"));
+
+        // At least one of the subsequent AI players should have played depending on the trick status
+        const someAIPlayed = !!(westPlayedLog || eastPlayedLog || partnerPlayedLog);
+        expect(someAIPlayed).toBe(true);
+    });
+
     it('should accumulate score per-team and trigger game-win at 7 points', () => {
         game.scoreTracker.resetAll();
 
