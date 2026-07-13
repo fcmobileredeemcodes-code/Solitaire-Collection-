@@ -47,6 +47,7 @@ import BlackHole from "~Games/BlackHole/GameInfo";
 import Osmosis from "~Games/Osmosis/GameInfo";
 import LaBelleLucie from "~Games/LaBelleLucie/GameInfo";
 import Whist from "~Games/Whist/GameInfo";
+import Duchess from "~Games/Duchess/GameInfo";
 
 const gameInfos = new Map<string, IGameInfo>();
 gameInfos.set(LaBelleLucie.gameId, LaBelleLucie);
@@ -95,6 +96,7 @@ gameInfos.set(Accordion.gameId, Accordion);
 gameInfos.set(BlackHole.gameId, BlackHole);
 gameInfos.set(Osmosis.gameId, Osmosis);
 gameInfos.set(Whist.gameId, Whist);
+gameInfos.set(Duchess.gameId, Duchess);
 
 window.addEventListener("load", () => {
     const tableHolder = document.getElementById("tableHolder") ?? document.body;
