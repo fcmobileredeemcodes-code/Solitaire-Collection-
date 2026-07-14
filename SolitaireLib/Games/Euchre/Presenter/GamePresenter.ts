@@ -52,10 +52,10 @@ export class GamePresenter extends TrickTakingGamePresenterBase<Game> {
         const clientHeight = this.rootView_.element.clientHeight;
         if (clientWidth <= 0 || clientHeight <= 0) return;
 
-        const remPerPx = this.rootView_.context.remPerPx;
-        if (!remPerPx) return;
-        const widthRem = clientWidth * remPerPx;
-        const heightRem = clientHeight * remPerPx;
+        const pxPerRem = this.rootView_.context.pxPerRem;
+        if (!pxPerRem) return;
+        const widthRem = clientWidth * pxPerRem;
+        const heightRem = clientHeight * pxPerRem;
 
         // Determine dynamic card sizes:
         const cardHeight = Math.max(5, Math.min(heightRem * 0.16, 8));
@@ -336,26 +336,87 @@ export class GamePresenter extends TrickTakingGamePresenterBase<Game> {
     }
 
     private layoutHandCustom_(pile: any, pv: any, playerIndex: number, cardWidth: number, cardHeight: number) {
-        const isDiscarding = this.game_.waitingForHumanDiscard;
-        const isPlayTurn = !this.game_.isBiddingPhase && !isDiscarding && this.game_.waitingForHumanPlay;
+        const count = pile.length;
+        if (count === 0) return;
 
-        const isLegal = (card: any) => {
-            if (isDiscarding) return true;
-            return isPlayTurn && this.game_.getLegalCards_(pile).includes(card);
-        };
+        const rect = pv.rect;
 
-        this.layoutHandBase_(
-            pile,
-            pv,
-            playerIndex,
-            cardWidth,
-            cardHeight,
-            isLegal,
-            isDiscarding || isPlayTurn,
-            (card) => {
-                void this.doOperation_(() => this.game_.cardPrimary(card));
+        if (playerIndex === 0) {
+            // South (Human Hand)
+            const maxHandWidth = rect.sizeX;
+            const stepX = count > 1 ? Math.min(cardWidth * 0.7, (maxHandWidth - cardWidth) / (count - 1)) : 0;
+            const startX = rect.x - (stepX * (count - 1)) / 2;
+
+            for (let i = 0; i < count; ++i) {
+                const card = pile.at(i);
+                const cv = this.cardToCardView_.get(card);
+                if (!cv) continue;
+
+                cv.rect = new Rect(cardWidth, cardHeight, startX + i * stepX, rect.y);
+                cv.faceUp = card.faceUp;
+                cv.zIndex = 200 + i;
+
+                const isDiscarding = this.game_.waitingForHumanDiscard;
+                const isMyTurn = !this.game_.isBiddingPhase && !isDiscarding && this.game_.waitingForHumanPlay;
+
+                if (isDiscarding) {
+                    cv.element.style.filter = "brightness(1.15) drop-shadow(0 0 6px #00ff66)";
+                    cv.element.style.cursor = "pointer";
+                    cv.element.style.transform = "translateY(-0.8rem)";
+                } else if (isMyTurn) {
+                    const legalCards = this.game_.getLegalCards_(pile);
+                    if (legalCards.includes(card)) {
+                        cv.element.style.filter = "brightness(1.15) drop-shadow(0 0 6px #ffd700)";
+                        cv.element.style.cursor = "pointer";
+                        cv.element.style.transform = "translateY(-0.8rem)";
+                    } else {
+                        cv.element.style.filter = "brightness(0.65)";
+                        cv.element.style.cursor = "not-allowed";
+                        cv.element.style.transform = "none";
+                    }
+                } else {
+                    cv.element.style.filter = "none";
+                    cv.element.style.cursor = "default";
+                    cv.element.style.transform = "none";
+                }
             }
-        );
+        } else if (playerIndex === 2) {
+            // North
+            const maxHandWidth = rect.sizeX;
+            const stepX = count > 1 ? Math.min(cardWidth * 0.4, (maxHandWidth - cardWidth) / (count - 1)) : 0;
+            const startX = rect.x - (stepX * (count - 1)) / 2;
+
+            for (let i = 0; i < count; ++i) {
+                const card = pile.at(i);
+                const cv = this.cardToCardView_.get(card);
+                if (!cv) continue;
+
+                cv.rect = new Rect(cardWidth, cardHeight, startX + i * stepX, rect.y);
+                cv.faceUp = card.faceUp;
+                cv.zIndex = 200 + i;
+                cv.element.style.filter = "none";
+                cv.element.style.cursor = "default";
+                cv.element.style.transform = "none";
+            }
+        } else {
+            // East/West
+            const maxHandHeight = rect.sizeY;
+            const stepY = count > 1 ? Math.min(cardHeight * 0.15, (maxHandHeight - cardHeight) / (count - 1)) : 0;
+            const startY = rect.y - (stepY * (count - 1)) / 2;
+
+            for (let i = 0; i < count; ++i) {
+                const card = pile.at(i);
+                const cv = this.cardToCardView_.get(card);
+                if (!cv) continue;
+
+                cv.rect = new Rect(cardWidth, cardHeight, rect.x, startY + i * stepY);
+                cv.faceUp = card.faceUp;
+                cv.zIndex = 200 + i;
+                cv.element.style.filter = "none";
+                cv.element.style.cursor = "default";
+                cv.element.style.transform = "none";
+            }
+        }
     }
 
     private layoutPlayedCustom_(pile: any, pv: any, cardWidth: number, cardHeight: number) {
