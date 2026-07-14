@@ -68,6 +68,7 @@ export abstract class TrickTakingGamePresenterBase<TGame extends TrickTakingGame
     }
 
     public dispose() {
+        this.rootView_.element.classList.remove("trickTakingTable");
         this.rootView_.dispose();
         this.newGameButton_?.removeEventListener("click", this.onNewGameButtonClick_);
         window.removeEventListener("resize", this.onWindowResize_);
