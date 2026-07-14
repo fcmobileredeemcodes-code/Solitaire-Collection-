@@ -64,6 +64,7 @@ import Colorado from "~Games/Colorado/GameInfo";
 import AmericanToad from "~Games/AmericanToad/GameInfo";
 import KingAlbert from "~Games/KingAlbert/GameInfo";
 import CrazyQuilt from "~Games/CrazyQuilt/GameInfo";
+import Skat from "~Games/Skat/GameInfo";
 
 const gameInfos = new Map<string, IGameInfo>();
 gameInfos.set(LaBelleLucie.gameId, LaBelleLucie);
@@ -129,6 +130,7 @@ gameInfos.set(Colorado.gameId, Colorado);
 gameInfos.set(AmericanToad.gameId, AmericanToad);
 gameInfos.set(KingAlbert.gameId, KingAlbert);
 gameInfos.set(CrazyQuilt.gameId, CrazyQuilt);
+gameInfos.set(Skat.gameId, Skat);
 
 window.addEventListener("load", () => {
     const tableHolder = document.getElementById("tableHolder") ?? document.body;
