@@ -8,7 +8,6 @@ import { Rect } from "../View/Rect";
 import { IGamePresenter } from "./IGamePresenter";
 import { TrickTakingGameBase } from "../Model/TrickTakingGameBase";
 import { AvatarView } from "./AvatarView";
-import { Card } from "../Model/Card";
 import { Pile } from "../Model/Pile";
 import { Suit } from "../Model/Suit";
 import { IView } from "../View/IView";
@@ -31,10 +30,17 @@ export abstract class TrickTakingGamePresenterBase<TGame extends TrickTakingGame
     protected avatarViews_: AvatarView[] = [];
     protected centerStatusPanel_!: HTMLElement;
     protected logPanel_!: HTMLElement;
+    protected yourTurnBanner_!: HTMLElement;
+
+    // Mobile Stage-and-Confirm Card State
+    protected stagedCard_: ICard | null = null;
 
     constructor(game: TGame, rootView: IView) {
         this.game_ = game;
         this.rootView_ = rootView;
+
+        // Apply trick taking layout context class to table
+        this.rootView_.element.classList.add("trickTakingTable");
 
         // Hide solitaire-specific Undo/Redo buttons
         if (this.undoButton_) this.undoButton_.style.display = "none";
@@ -48,6 +54,15 @@ export abstract class TrickTakingGamePresenterBase<TGame extends TrickTakingGame
         window.addEventListener("resize", this.onWindowResize_);
         window.addEventListener("orientationchange", this.onWindowResize_);
         window.addEventListener("keydown", this.onWindowKeyDown_);
+
+        // Dismiss staged card when clicking on the empty background table
+        this.rootView_.element.addEventListener("click", (e) => {
+            const target = e.target as HTMLElement;
+            if (target === this.rootView_.element || target.classList.contains("cardTable")) {
+                this.stagedCard_ = null;
+                this.relayoutAll_();
+            }
+        });
 
         this.createStatusAndLogPanels_();
     }
@@ -64,6 +79,7 @@ export abstract class TrickTakingGamePresenterBase<TGame extends TrickTakingGame
         }
         this.centerStatusPanel_.remove();
         this.logPanel_.remove();
+        this.yourTurnBanner_.remove();
     }
 
     public start() {
@@ -80,7 +96,18 @@ export abstract class TrickTakingGamePresenterBase<TGame extends TrickTakingGame
     }
 
     private createStatusAndLogPanels_() {
-        // Center panel for Round and Trump info
+        // Table Felt Play Mat (Mat overlay)
+        const playArea = document.createElement("div");
+        playArea.className = "trickPlayArea";
+        this.rootView_.element.appendChild(playArea);
+
+        // Your turn banner
+        this.yourTurnBanner_ = document.createElement("div");
+        this.yourTurnBanner_.className = "yourTurnBanner";
+        this.yourTurnBanner_.textContent = "YOUR TURN TO PLAY";
+        this.rootView_.element.appendChild(this.yourTurnBanner_);
+
+        // HUD panel for Round and Trump info
         this.centerStatusPanel_ = document.createElement("div");
         this.centerStatusPanel_.className = "centerStatusPanel";
         this.centerStatusPanel_.style.position = "absolute";
@@ -88,33 +115,16 @@ export abstract class TrickTakingGamePresenterBase<TGame extends TrickTakingGame
         this.centerStatusPanel_.style.flexDirection = "column";
         this.centerStatusPanel_.style.alignItems = "center";
         this.centerStatusPanel_.style.justifyContent = "center";
-        this.centerStatusPanel_.style.pointerEvents = "none";
         this.centerStatusPanel_.style.color = "white";
         this.centerStatusPanel_.style.fontFamily = "inherit";
-        this.centerStatusPanel_.style.zIndex = "50";
+        this.centerStatusPanel_.style.zIndex = "90";
         this.centerStatusPanel_.style.textAlign = "center";
-        this.centerStatusPanel_.style.background = "rgba(0, 0, 0, 0.4)";
-        this.centerStatusPanel_.style.padding = "0.5rem 1.2rem";
-        this.centerStatusPanel_.style.borderRadius = "0.6rem";
-        this.centerStatusPanel_.style.boxShadow = "0 2px 8px rgba(0,0,0,0.2)";
         this.rootView_.element.appendChild(this.centerStatusPanel_);
 
         // Log panel on left side
         this.logPanel_ = document.createElement("div");
         this.logPanel_.className = "gameLogPanel";
         this.logPanel_.style.position = "absolute";
-        this.logPanel_.style.left = "1.5rem";
-        this.logPanel_.style.bottom = "1.5rem";
-        this.logPanel_.style.width = "18rem";
-        this.logPanel_.style.maxHeight = "15vh";
-        this.logPanel_.style.overflowY = "auto";
-        this.logPanel_.style.background = "rgba(0, 0, 0, 0.65)";
-        this.logPanel_.style.color = "#eee";
-        this.logPanel_.style.fontFamily = "monospace";
-        this.logPanel_.style.fontSize = "1.3vh";
-        this.logPanel_.style.padding = "0.6rem";
-        this.logPanel_.style.borderRadius = "0.5rem";
-        this.logPanel_.style.boxShadow = "0 4px 6px rgba(0,0,0,0.3)";
         this.logPanel_.style.zIndex = "80";
         this.logPanel_.style.display = "flex";
         this.logPanel_.style.flexDirection = "column-reverse";
@@ -147,11 +157,9 @@ export abstract class TrickTakingGamePresenterBase<TGame extends TrickTakingGame
 
     protected getSeatForPlayer_(index: number, numPlayers: number): "South" | "West" | "North" | "East" {
         if (numPlayers === 3) {
-            // For 3 players: Human is South (0), left is West (1), right is East (2). No North player.
             const seats3: ("South" | "West" | "East")[] = ["South", "West", "East"];
             return seats3[index] || "South";
         }
-        // Default 4 players: South (0), West (1), North (2), East (3)
         const seats4: ("South" | "West" | "North" | "East")[] = ["South", "West", "North", "East"];
         return seats4[index] || "South";
     }
@@ -187,7 +195,7 @@ export abstract class TrickTakingGamePresenterBase<TGame extends TrickTakingGame
 
     private readonly operations_: (() => Generator<DelayHint, void>)[] = [];
 
-    private async doOperation_(operation: () => Generator<DelayHint, void>) {
+    protected async doOperation_(operation: () => Generator<DelayHint, void>) {
         this.operations_.push(operation);
 
         if (this.operations_.length === 1) {
@@ -238,10 +246,10 @@ export abstract class TrickTakingGamePresenterBase<TGame extends TrickTakingGame
         const clientHeight = this.rootView_.element.clientHeight;
         if (clientWidth <= 0 || clientHeight <= 0) return;
 
-        const pxPerRem = this.rootView_.context.pxPerRem;
-        if (!pxPerRem) return;
-        const widthRem = clientWidth * pxPerRem;
-        const heightRem = clientHeight * pxPerRem;
+        const remPerPx = this.rootView_.context.remPerPx;
+        if (!remPerPx) return;
+        const widthRem = clientWidth * remPerPx;
+        const heightRem = clientHeight * remPerPx;
 
         // Determine dynamic card sizes:
         const cardHeight = Math.max(5, Math.min(heightRem * 0.16, 8));
@@ -251,12 +259,11 @@ export abstract class TrickTakingGamePresenterBase<TGame extends TrickTakingGame
         const cx = widthRem / 2;
         const cy = heightRem / 2 - 1.5;
 
-        // Position hand piles and played piles using CENTERED coordinate system: (0,0) is screen center
-        const playedOffset = cardHeight * 0.75;
+        // Position hand piles and played piles
+        const playedOffset = cardHeight * 0.85;
 
         const numPlayers = this.game_.players.length;
 
-        // Visual position mapping index based on seat
         const seatMapping = {
             "South": 0,
             "West": 1,
@@ -265,17 +272,17 @@ export abstract class TrickTakingGamePresenterBase<TGame extends TrickTakingGame
         };
 
         const handPositions = [
-            new Rect(cardWidth * 7, cardHeight, 0, heightRem / 2 - cardHeight / 2 - 1.5), // South (Human Hand)
-            new Rect(cardWidth, cardHeight * 4, -widthRem / 2 + cardWidth / 2 + 1.5, 0), // West Hand
-            new Rect(cardWidth * 7, cardHeight, 0, -heightRem / 2 + cardHeight / 2 + 1.5), // North Hand
-            new Rect(cardWidth, cardHeight * 4, widthRem / 2 - cardWidth / 2 - 1.5, 0), // East Hand
+            new Rect(cardWidth * 7, cardHeight, 0, heightRem / 2 - cardHeight / 2 - 2.0), // South (Human Hand - lowered slightly)
+            new Rect(cardWidth, cardHeight * 4, -widthRem / 2 + cardWidth / 2 + 2.0, 0), // West Hand
+            new Rect(cardWidth * 7, cardHeight, 0, -heightRem / 2 + cardHeight / 2 + 2.0), // North Hand
+            new Rect(cardWidth, cardHeight * 4, widthRem / 2 - cardWidth / 2 - 2.0, 0), // East Hand
         ];
 
         const playedPositions = [
-            new Rect(cardWidth, cardHeight, 0, playedOffset), // South Played (offset down)
-            new Rect(cardWidth, cardHeight, -playedOffset, 0), // West Played (offset left)
-            new Rect(cardWidth, cardHeight, 0, -playedOffset), // North Played (offset up)
-            new Rect(cardWidth, cardHeight, playedOffset, 0), // East Played (offset right)
+            new Rect(cardWidth, cardHeight, 0, playedOffset), // South Played
+            new Rect(cardWidth, cardHeight, -playedOffset, 0), // West Played
+            new Rect(cardWidth, cardHeight, 0, -playedOffset), // North Played
+            new Rect(cardWidth, cardHeight, playedOffset, 0), // East Played
         ];
 
         // Layout PileViews
@@ -288,7 +295,18 @@ export abstract class TrickTakingGamePresenterBase<TGame extends TrickTakingGame
             if (handPile) {
                 const pv = this.getPileView_(handPile);
                 pv.rect = handPositions[posIdx];
-                this.layoutHand_(handPile, pv, posIdx, cardWidth, cardHeight);
+                this.layoutHandBase_(
+                    handPile,
+                    pv,
+                    posIdx,
+                    cardWidth,
+                    cardHeight,
+                    (card) => this.game_.waitingForHumanPlay && this.game_.getLegalCards_(handPile).includes(card),
+                    this.game_.waitingForHumanPlay,
+                    (card) => {
+                        this.cardPrimary_(card);
+                    }
+                );
             }
 
             if (playedPile) {
@@ -314,10 +332,10 @@ export abstract class TrickTakingGamePresenterBase<TGame extends TrickTakingGame
 
         // Layout AvatarViews
         const avatarPositions = [
-            { x: cx - 4.5, y: heightRem - cardHeight - 6.5 }, // South Avatar
-            { x: 2.5, y: cy - cardHeight / 2 - 4.5 }, // West Avatar
-            { x: cx - 4.5, y: cardHeight + 4.5 }, // North Avatar
-            { x: widthRem - 11.5, y: cy - cardHeight / 2 - 4.5 }, // East Avatar
+            { x: cx - 3.75, y: heightRem - cardHeight - 8.5 }, // South Avatar
+            { x: 3.5, y: cy - cardHeight / 2 - 5.5 }, // West Avatar
+            { x: cx - 3.75, y: cardHeight + 4.5 }, // North Avatar
+            { x: widthRem - 11.5, y: cy - cardHeight / 2 - 5.5 }, // East Avatar
         ];
 
         for (let i = 0; i < numPlayers; ++i) {
@@ -330,7 +348,6 @@ export abstract class TrickTakingGamePresenterBase<TGame extends TrickTakingGame
             av.element.style.left = `${avatarPositions[posIdx].x}rem`;
             av.element.style.top = `${avatarPositions[posIdx].y}rem`;
 
-            // Status details
             const lockupLeft = this.game_.skippedTricks ? this.game_.skippedTricks[i] : 0;
             av.updateStatus(
                 this.game_.scoreTracker.getTricks(player),
@@ -346,7 +363,14 @@ export abstract class TrickTakingGamePresenterBase<TGame extends TrickTakingGame
             }
         }
 
-        // Update Center Status Panel using HTML Entities for correct UTF-8 rendering
+        // Update sliding turn banner
+        if (this.game_.waitingForHumanPlay) {
+            this.yourTurnBanner_.classList.add("active");
+        } else {
+            this.yourTurnBanner_.classList.remove("active");
+        }
+
+        // Update HUD
         const suitSymbols = {
             [Suit.Spades]: "&spades; Spades",
             [Suit.Hearts]: "&hearts; Hearts",
@@ -366,17 +390,16 @@ export abstract class TrickTakingGamePresenterBase<TGame extends TrickTakingGame
         const trumpColor = suitColors[trumpSuit] || "#ffffff";
 
         this.centerStatusPanel_.innerHTML = `
-            <div style="font-size: 1.4vh; opacity: 0.85;">ROUND ${this.game_.roundNumber}</div>
-            <div style="font-size: 2.2vh; font-weight: bold; color: ${trumpColor}; margin-top: 0.1rem;">
+            <div style="font-size: 1.2vh; opacity: 0.85; font-weight: bold; letter-spacing: 0.05rem;">ROUND ${this.game_.roundNumber}</div>
+            <div style="font-size: 1.8vh; font-weight: bold; color: ${trumpColor}; margin-top: 0.2rem;">
                 Trump: ${trumpText}
             </div>
-            ${this.game_.waitingForHumanPlay ? `<div style="font-size: 1.3vh; color: #ffcc00; margin-top: 0.3rem; animation: pulse 1.5s infinite;">YOUR TURN</div>` : ""}
         `;
 
-        // Position Center Status Panel
-        this.centerStatusPanel_.style.left = `${cx - 6}rem`;
-        this.centerStatusPanel_.style.top = `${cy - 2}rem`;
-        this.centerStatusPanel_.style.width = "12rem";
+        // Position HUD (Float cleanly in Top Left)
+        this.centerStatusPanel_.style.left = "1.5rem";
+        this.centerStatusPanel_.style.top = "1.5rem";
+        this.centerStatusPanel_.style.width = "11rem";
 
         // Update Logs Panel
         this.logPanel_.innerHTML = this.game_.gameLog
@@ -386,44 +409,101 @@ export abstract class TrickTakingGamePresenterBase<TGame extends TrickTakingGame
             .join("");
     }
 
-    private layoutHand_(pile: Pile, pv: PileView, playerIndex: number, cardWidth: number, cardHeight: number) {
+    protected layoutHandBase_(
+        pile: Pile,
+        pv: PileView,
+        playerIndex: number,
+        cardWidth: number,
+        cardHeight: number,
+        isLegal: (card: ICard) => boolean,
+        isClickable: boolean,
+        onCardClicked: (card: ICard) => void,
+        isSelected: (card: ICard) => boolean = () => false
+    ) {
         const count = pile.length;
         if (count === 0) return;
 
         const rect = pv.rect;
 
         if (playerIndex === 0) {
-            // Human (South) - horizontal fan, cards overlap fanned
-            const maxHandWidth = rect.sizeX;
-            const stepX = count > 1 ? Math.min(cardWidth * 0.7, (maxHandWidth - cardWidth) / (count - 1)) : 0;
-            const startX = rect.x - (stepX * (count - 1)) / 2;
+            // South (Human) - beautiful fanned curved arc
+            const radius = cardHeight * 2.5;
+            const maxSpan = Math.min(42, count * 5);
+            const startAngle = -maxSpan / 2;
+            const stepAngle = count > 1 ? maxSpan / (count - 1) : 0;
 
             for (let i = 0; i < count; ++i) {
                 const card = pile.at(i);
                 const cv = this.getCardView_(card);
-                cv.rect = new Rect(cardWidth, cardHeight, startX + i * stepX, rect.y);
-                cv.faceUp = card.faceUp;
-                cv.zIndex = 200 + i;
+                if (!cv) continue;
 
-                if (this.game_.waitingForHumanPlay) {
-                    const legalCards = this.game_.getLegalCards_(pile);
-                    if (legalCards.includes(card)) {
-                        cv.element.style.filter = "brightness(1.15) drop-shadow(0 0 6px #ffd700)";
-                        cv.element.style.cursor = "pointer";
-                        cv.element.style.transform = "translateY(-0.8rem)";
+                const angleDeg = startAngle + i * stepAngle;
+                const angleRad = (angleDeg * Math.PI) / 180;
+
+                const x = radius * Math.sin(angleRad);
+                const y = radius * (1 - Math.cos(angleRad));
+
+                cv.rect = new Rect(cardWidth, cardHeight, rect.x + x, rect.y + y);
+                cv.zIndex = 200 + i;
+                cv.faceUp = card.faceUp;
+
+                const legal = isLegal(card);
+                const selected = isSelected(card);
+                const staged = this.stagedCard_ === card;
+
+                let liftY = 0;
+                let filterStr = "none";
+                let cursorStr = "default";
+
+                if (isClickable) {
+                    if (legal) {
+                        cursorStr = "pointer";
+                        if (staged) {
+                            liftY = -1.6;
+                            filterStr = "brightness(1.15) drop-shadow(0 0 10px #ffd700)";
+                        } else {
+                            liftY = -0.5;
+                            filterStr = "brightness(1.05) drop-shadow(0 0 5px rgba(255,215,0,0.6))";
+                        }
+                    } else if (selected) {
+                        // Highlighting passing cards or custom selection
+                        liftY = -1.6;
+                        filterStr = "brightness(1.15) drop-shadow(0 0 8px #ff4d4d)";
+                        cursorStr = "pointer";
                     } else {
-                        cv.element.style.filter = "brightness(0.65)";
-                        cv.element.style.cursor = "not-allowed";
-                        cv.element.style.transform = "none";
+                        // Unplayable/unselectable cards are dimmed
+                        filterStr = "brightness(0.55)";
+                        cursorStr = "not-allowed";
                     }
                 } else {
-                    cv.element.style.filter = "none";
-                    cv.element.style.cursor = "default";
-                    cv.element.style.transform = "none";
+                    filterStr = "none";
+                    cursorStr = "default";
                 }
+
+                cv.element.style.filter = filterStr;
+                cv.element.style.cursor = cursorStr;
+                cv.element.style.transform = `rotate(${angleDeg}deg) translateY(${liftY}rem)`;
+
+                // Dynamic mobile Stage-and-Confirm selection click handler
+                cv.click = () => {
+                    if (!isClickable) return;
+
+                    if (legal) {
+                        // Stage-and-Confirm Loop
+                        if (this.stagedCard_ === card) {
+                            this.stagedCard_ = null;
+                            onCardClicked(card);
+                        } else {
+                            this.stagedCard_ = card;
+                            this.relayoutAll_();
+                        }
+                    } else {
+                        onCardClicked(card);
+                    }
+                };
             }
         } else if (playerIndex === 2) {
-            // North (AI) - horizontal fan, cards overlap smaller, face down
+            // North - horizontal layout
             const maxHandWidth = rect.sizeX;
             const stepX = count > 1 ? Math.min(cardWidth * 0.4, (maxHandWidth - cardWidth) / (count - 1)) : 0;
             const startX = rect.x - (stepX * (count - 1)) / 2;
@@ -431,12 +511,24 @@ export abstract class TrickTakingGamePresenterBase<TGame extends TrickTakingGame
             for (let i = 0; i < count; ++i) {
                 const card = pile.at(i);
                 const cv = this.getCardView_(card);
+                if (!cv) continue;
+
                 cv.rect = new Rect(cardWidth, cardHeight, startX + i * stepX, rect.y);
                 cv.faceUp = card.faceUp;
                 cv.zIndex = 200 + i;
-                cv.element.style.filter = "none";
-                cv.element.style.cursor = "default";
-                cv.element.style.transform = "none";
+
+                const legal = isLegal(card);
+                if (isClickable && legal) {
+                    cv.element.style.filter = "brightness(1.15) drop-shadow(0 0 6px #ff3333)";
+                    cv.element.style.cursor = "pointer";
+                    cv.element.style.transform = "translateY(0.8rem)";
+                    cv.click = () => onCardClicked(card);
+                } else {
+                    cv.element.style.filter = "none";
+                    cv.element.style.cursor = "default";
+                    cv.element.style.transform = "none";
+                    cv.click = null;
+                }
             }
         } else {
             // West (1) and East (3) - vertically fanned
@@ -447,17 +539,29 @@ export abstract class TrickTakingGamePresenterBase<TGame extends TrickTakingGame
             for (let i = 0; i < count; ++i) {
                 const card = pile.at(i);
                 const cv = this.getCardView_(card);
+                if (!cv) continue;
+
                 cv.rect = new Rect(cardWidth, cardHeight, rect.x, startY + i * stepY);
                 cv.faceUp = card.faceUp;
                 cv.zIndex = 200 + i;
-                cv.element.style.filter = "none";
-                cv.element.style.cursor = "default";
-                cv.element.style.transform = "none";
+
+                const legal = isLegal(card);
+                if (isClickable && legal) {
+                    cv.element.style.filter = "brightness(1.15) drop-shadow(0 0 6px #ff3333)";
+                    cv.element.style.cursor = "pointer";
+                    cv.element.style.transform = playerIndex === 1 ? "translateX(0.8rem)" : "translateX(-0.8rem)";
+                    cv.click = () => onCardClicked(card);
+                } else {
+                    cv.element.style.filter = "none";
+                    cv.element.style.cursor = "default";
+                    cv.element.style.transform = "none";
+                    cv.click = null;
+                }
             }
         }
     }
 
-    private layoutPlayed_(pile: Pile, pv: PileView, cardWidth: number, cardHeight: number) {
+    protected layoutPlayed_(pile: Pile, pv: PileView, cardWidth: number, cardHeight: number) {
         const rect = pv.rect;
         for (let i = 0; i < pile.length; ++i) {
             const card = pile.at(i);
@@ -468,16 +572,17 @@ export abstract class TrickTakingGamePresenterBase<TGame extends TrickTakingGame
             cv.element.style.filter = "none";
             cv.element.style.cursor = "default";
             cv.element.style.transform = "none";
+            cv.click = null;
         }
     }
 
-    private getCardView_(card: ICard) {
+    protected getCardView_(card: ICard) {
         const cv = this.cardToCardView_.get(card);
         if (!cv) Debug.error();
         return cv;
     }
 
-    private getPileView_(pile: IPile) {
+    protected getPileView_(pile: IPile) {
         const pv = this.pileToPileView_.get(pile);
         if (!pv) Debug.error();
         return pv;

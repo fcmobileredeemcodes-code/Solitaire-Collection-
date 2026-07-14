@@ -87,10 +87,10 @@ export class GamePresenter extends GamePresenterBase<IGame> {
         const { sizeX, sizeY } = this.calculateCardSize(10, 0.5);
 
         let cappedSizeY = Math.min(10.5, sizeY);
-        const pxPerRem = this.rootView_.context.pxPerRem;
+        const remPerPx = this.rootView_.context.remPerPx;
         const clientHeight = this.rootView_.element.clientHeight;
-        if (pxPerRem && !isNaN(pxPerRem) && isFinite(pxPerRem) && clientHeight > 0) {
-            const fontSizeInPx = 1 / pxPerRem;
+        if (remPerPx && !isNaN(remPerPx) && isFinite(remPerPx) && clientHeight > 0) {
+            const fontSizeInPx = 1 / remPerPx;
             const H_em = clientHeight / fontSizeInPx;
             // 9 vertical rows of card layout. With some safe margin/padding, 10.0 is a perfect ratio.
             const maxVerticalSizeY = H_em / 10.0;

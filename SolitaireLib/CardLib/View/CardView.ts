@@ -133,7 +133,7 @@ export class CardView implements IView, ITouchResponder {
                 this.touchStartX_ = x;
                 this.touchStartY_ = y;
 
-                const pxSize = this.context.pxPerRem;
+                const pxSize = this.context.remPerPx;
 
                 this.dragRect_.x += pxSize * dx;
                 this.dragRect_.y += pxSize * dy;
