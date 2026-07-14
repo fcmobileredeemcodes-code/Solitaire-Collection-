@@ -87,10 +87,10 @@ export class GamePresenter extends TrickTakingGamePresenterBase<Game> {
         const clientHeight = this.rootView_.element.clientHeight;
         if (clientWidth <= 0 || clientHeight <= 0) return;
 
-        const remPerPx = this.rootView_.context.remPerPx;
-        if (!remPerPx) return;
-        const widthRem = clientWidth * remPerPx;
-        const heightRem = clientHeight * remPerPx;
+        const pxPerRem = this.rootView_.context.pxPerRem;
+        if (!pxPerRem) return;
+        const widthRem = clientWidth * pxPerRem;
+        const heightRem = clientHeight * pxPerRem;
 
         // Determine dynamic card sizes:
         const cardHeight = Math.max(5, Math.min(heightRem * 0.16, 8));
@@ -382,37 +382,99 @@ export class GamePresenter extends TrickTakingGamePresenterBase<Game> {
     }
 
     private layoutHandCustom_(pile: any, pv: any, playerIndex: number, cardWidth: number, cardHeight: number) {
-        const isBidding = this.game_.isBiddingPhase;
-        const activeIdx = this.game_.activePlayerIndex;
-        const declarerIdx = this.game_.declarerIndex;
+        const count = pile.length;
+        if (count === 0) return;
 
-        const isSouthTurn = !isBidding && this.game_.waitingForHumanPlay && activeIdx === 0;
-        const isDummyTurn = !isBidding && this.game_.waitingForHumanPlay && activeIdx === 2 && declarerIdx === 0;
+        const rect = pv.rect;
 
-        const isLegal = (card: any) => {
-            if (playerIndex === 0) {
-                return isSouthTurn && this.game_.getLegalCards_(pile).includes(card);
+        if (playerIndex === 0) {
+            // South (Human Hand)
+            const maxHandWidth = rect.sizeX;
+            const stepX = count > 1 ? Math.min(cardWidth * 0.7, (maxHandWidth - cardWidth) / (count - 1)) : 0;
+            const startX = rect.x - (stepX * (count - 1)) / 2;
+
+            for (let i = 0; i < count; ++i) {
+                const card = pile.at(i);
+                const cv = this.cardToCardView_.get(card);
+                if (!cv) continue;
+
+                cv.rect = new Rect(cardWidth, cardHeight, startX + i * stepX, rect.y);
+                cv.faceUp = card.faceUp;
+                cv.zIndex = 200 + i;
+
+                const isMyTurn = !this.game_.isBiddingPhase && this.game_.waitingForHumanPlay && (this.game_.activePlayerIndex === 0);
+
+                if (isMyTurn) {
+                    const legalCards = this.game_.getLegalCards_(pile);
+                    if (legalCards.includes(card)) {
+                        cv.element.style.filter = "brightness(1.15) drop-shadow(0 0 6px #ffd700)";
+                        cv.element.style.cursor = "pointer";
+                        cv.element.style.transform = "translateY(-0.8rem)";
+                    } else {
+                        cv.element.style.filter = "brightness(0.65)";
+                        cv.element.style.cursor = "not-allowed";
+                        cv.element.style.transform = "none";
+                    }
+                } else {
+                    cv.element.style.filter = "none";
+                    cv.element.style.cursor = "default";
+                    cv.element.style.transform = "none";
+                }
             }
-            if (playerIndex === 2) {
-                return isDummyTurn && this.game_.getLegalCards_(pile).includes(card);
-            }
-            return false;
-        };
+        } else if (playerIndex === 2) {
+            // North (Dummy Hand / AI)
+            const maxHandWidth = rect.sizeX;
+            const stepX = count > 1 ? Math.min(cardWidth * 0.5, (maxHandWidth - cardWidth) / (count - 1)) : 0;
+            const startX = rect.x - (stepX * (count - 1)) / 2;
 
-        const isClickable = (playerIndex === 0 && isSouthTurn) || (playerIndex === 2 && isDummyTurn);
+            for (let i = 0; i < count; ++i) {
+                const card = pile.at(i);
+                const cv = this.cardToCardView_.get(card);
+                if (!cv) continue;
 
-        this.layoutHandBase_(
-            pile,
-            pv,
-            playerIndex,
-            cardWidth,
-            cardHeight,
-            isLegal,
-            isClickable,
-            (card) => {
-                void this.doOperation_(() => this.game_.cardPrimary(card));
+                cv.rect = new Rect(cardWidth, cardHeight, startX + i * stepX, rect.y);
+                cv.faceUp = card.faceUp;
+                cv.zIndex = 200 + i;
+
+                // If South (You) is Declarer, and active turn is Dummy (North, index 2), the human plays dummy's cards!
+                const isDummyPlayTurn = !this.game_.isBiddingPhase && this.game_.waitingForHumanPlay && (this.game_.activePlayerIndex === 2) && (this.game_.declarerIndex === 0);
+
+                if (isDummyPlayTurn) {
+                    const legalCards = this.game_.getLegalCards_(pile);
+                    if (legalCards.includes(card)) {
+                        cv.element.style.filter = "brightness(1.15) drop-shadow(0 0 6px #ff3333)";
+                        cv.element.style.cursor = "pointer";
+                        cv.element.style.transform = "translateY(0.8rem)"; // fan down since North is at top of screen
+                    } else {
+                        cv.element.style.filter = "brightness(0.65)";
+                        cv.element.style.cursor = "not-allowed";
+                        cv.element.style.transform = "none";
+                    }
+                } else {
+                    cv.element.style.filter = "none";
+                    cv.element.style.cursor = "default";
+                    cv.element.style.transform = "none";
+                }
             }
-        );
+        } else {
+            // East/West Hand
+            const maxHandHeight = rect.sizeY;
+            const stepY = count > 1 ? Math.min(cardHeight * 0.15, (maxHandHeight - cardHeight) / (count - 1)) : 0;
+            const startY = rect.y - (stepY * (count - 1)) / 2;
+
+            for (let i = 0; i < count; ++i) {
+                const card = pile.at(i);
+                const cv = this.cardToCardView_.get(card);
+                if (!cv) continue;
+
+                cv.rect = new Rect(cardWidth, cardHeight, rect.x, startY + i * stepY);
+                cv.faceUp = card.faceUp;
+                cv.zIndex = 200 + i;
+                cv.element.style.filter = "none";
+                cv.element.style.cursor = "default";
+                cv.element.style.transform = "none";
+            }
+        }
     }
 
     private layoutPlayedCustom_(pile: any, pv: any, cardWidth: number, cardHeight: number) {

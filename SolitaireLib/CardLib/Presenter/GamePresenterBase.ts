@@ -465,14 +465,14 @@ export abstract class GamePresenterBase<TGame extends IGameBase> implements IGam
 
     protected calculateCardSize(maxColumns: number, margin = 1): { sizeX: number; sizeY: number } {
         const clientWidth = this.rootView_.element.clientWidth;
-        const remPerPx = this.rootView_.context.remPerPx;
+        const pxPerRem = this.rootView_.context.pxPerRem;
 
-        if (!remPerPx || isNaN(remPerPx) || !isFinite(remPerPx) || clientWidth <= 0) {
+        if (!pxPerRem || isNaN(pxPerRem) || !isFinite(pxPerRem) || clientWidth <= 0) {
             return { sizeY: 20, sizeX: 20 / 1.5555555555555 };
         }
 
-        // Convert clientWidth (pixels) to em by dividing by the fontSize in pixels (which is 1 / remPerPx)
-        const fontSizeInPx = 1 / remPerPx;
+        // Convert clientWidth (pixels) to em by dividing by the fontSize in pixels (which is 1 / pxPerRem)
+        const fontSizeInPx = 1 / pxPerRem;
         const W_em = clientWidth / fontSizeInPx;
 
         // Apply a safety padding of 6.0em (3.0em on each side) to give the board breathing room and prevent overflow

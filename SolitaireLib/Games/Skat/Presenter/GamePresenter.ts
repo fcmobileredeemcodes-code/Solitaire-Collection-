@@ -102,10 +102,10 @@ export class GamePresenter extends TrickTakingGamePresenterBase<Game> {
         const clientHeight = this.rootView_.element.clientHeight;
         if (clientWidth <= 0 || clientHeight <= 0) return;
 
-        const remPerPx = this.rootView_.context.remPerPx;
-        if (!remPerPx) return;
-        const widthRem = clientWidth * remPerPx;
-        const heightRem = clientHeight * remPerPx;
+        const pxPerRem = this.rootView_.context.pxPerRem;
+        if (!pxPerRem) return;
+        const widthRem = clientWidth * pxPerRem;
+        const heightRem = clientHeight * pxPerRem;
 
         // Determine dynamic card sizes:
         const cardHeight = Math.max(5, Math.min(heightRem * 0.16, 8));

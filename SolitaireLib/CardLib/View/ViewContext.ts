@@ -8,9 +8,9 @@ export class ViewContext {
     private readonly element_: HTMLElement;
     private readonly touchResponders_: ITouchResponder[] = [];
 
-    private remPerPx_ = 0;
-    public get remPerPx() {
-        return this.remPerPx_;
+    private pxPerRem_ = 0;
+    public get pxPerRem() {
+        return this.pxPerRem_;
     }
 
     constructor(element: HTMLElement) {
@@ -35,7 +35,7 @@ export class ViewContext {
 
     private refreshUnits_() {
         const style = getComputedStyle(this.element_);
-        this.remPerPx_ = 1 / parseFloat(style.fontSize);
+        this.pxPerRem_ = 1 / parseFloat(style.fontSize);
     }
 
     public addTouchResponder(touchResponder: ITouchResponder) {
