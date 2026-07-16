@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Game, getEffectiveSuit, getTrumpValue } from './Game';
 import { Suit } from '~CardLib/Model/Suit';
 import { Rank } from '~CardLib/Model/Rank';
@@ -87,6 +87,9 @@ describe('Euchre Game Model', () => {
     });
 
     it('should enforce stick the dealer rule during Round 2 bidding', () => {
+        // Mock evaluateAIBid_ so AI players always pass, ensuring bidding reaches human
+        game.evaluateAIBid_ = () => ({ action: 'pass' });
+
         // Start game properly
         const restartGen = game.restart(12345);
         let res = restartGen.next();
@@ -151,6 +154,9 @@ describe('Euchre Game Model', () => {
     });
 
     it('should handle partner sitting out when going alone', () => {
+        // Mock evaluateAIBid_ so AI players always pass, ensuring bidding reaches human
+        game.evaluateAIBid_ = () => ({ action: 'pass' });
+
         const restartGen = game.restart(12345);
         let res = restartGen.next();
         while (!res.done) {
