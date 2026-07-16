@@ -32,6 +32,7 @@ describe('Skat Game Model', () => {
     });
 
     it('should follow the 3-3-4 pattern dealing 10 cards to each player and 2 cards to Skat', () => {
+        game.dealerIndex = 1;
         const restartGen = game.restart(12345);
         let res = restartGen.next();
         while (!res.done) {
@@ -45,6 +46,7 @@ describe('Skat Game Model', () => {
     });
 
     it('should establish correct pairwise asymmetric bidding sequence', () => {
+        game.dealerIndex = 1;
         const restartGen = game.restart(12345);
         let res = restartGen.next();
         while (!res.done) {

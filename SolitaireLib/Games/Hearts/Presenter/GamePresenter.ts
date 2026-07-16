@@ -16,9 +16,8 @@ export class GamePresenter extends TrickTakingGamePresenterBase<Game> {
     constructor(game: Game, rootView: IView) {
         super(game, rootView);
 
-        // Listen for pass confirmation button clicks in the center panel
-        this.centerStatusPanel_.style.pointerEvents = "auto";
-        this.centerStatusPanel_.addEventListener("click", (e) => {
+        // Listen for pass confirmation button clicks in the modal
+        this.modalBody_.addEventListener("click", (e) => {
             const target = e.target as HTMLElement;
             if (target && target.id === "confirmPassButton") {
                 e.preventDefault();
@@ -135,7 +134,19 @@ export class GamePresenter extends TrickTakingGamePresenterBase<Game> {
             }
         }
 
-        // Update Center Status Panel
+        // Update Center Status Panel & Modal
+        this.centerStatusPanel_.innerHTML = `
+            <div style="font-size: 1.4vh; opacity: 0.85;">ROUND ${this.game_.roundNumber}</div>
+            <div style="font-size: 2.2vh; font-weight: bold; color: #ff4d4d; margin-top: 0.1rem;">
+                No Trump
+            </div>
+            ${(!this.game_.isPassingPhase && this.game_.waitingForHumanPlay) ? `<div style="font-size: 1.3vh; color: #ffcc00; margin-top: 0.3rem; animation: pulse 1.5s infinite;">YOUR TURN</div>` : ""}
+        `;
+
+        this.centerStatusPanel_.style.left = `${cx - 7}rem`;
+        this.centerStatusPanel_.style.top = `${cy - 2.5}rem`;
+        this.centerStatusPanel_.style.width = "14rem";
+
         if (this.game_.isPassingPhase) {
             const passRotation = (this.game_.roundNumber - 1) % 4;
             const directions = ["Left", "Right", "Across"];
@@ -143,36 +154,15 @@ export class GamePresenter extends TrickTakingGamePresenterBase<Game> {
             const selectedCount = this.game_.humanPassedCards.length;
             const confirmEnabled = selectedCount === 3;
 
-            this.centerStatusPanel_.innerHTML = `
-                <div style="font-size: 1.3vh; opacity: 0.85; font-weight: bold; color: #ffcc00; letter-spacing: 0.05rem;">PASSING PHASE</div>
-                <div style="font-size: 1.6vh; margin-top: 0.2rem; color: #fff;">Pass 3 cards to the <strong>${dirText}</strong></div>
-                <div style="font-size: 1.2vh; color: #ccc; margin-top: 0.2rem;">Selected: ${selectedCount} / 3</div>
-                <button id="confirmPassButton" ${confirmEnabled ? "" : "disabled"} style="
-                    margin-top: 0.5rem;
-                    background: ${confirmEnabled ? "#00cc66" : "#444"};
-                    color: ${confirmEnabled ? "#fff" : "#888"};
-                    border: none;
-                    padding: 0.4rem 1rem;
-                    border-radius: 0.3rem;
-                    font-size: 1.4vh;
-                    font-weight: bold;
-                    cursor: ${confirmEnabled ? "pointer" : "not-allowed"};
-                    transition: background 0.2s;
-                ">Confirm Pass</button>
-            `;
+            this.showModal_(
+                "Passing Phase",
+                `<div style="font-size: 1.6vh; margin-top: 0.2rem; color: #fff;">Pass 3 cards to the <strong>${dirText}</strong></div>
+                <div style="font-size: 1.3vh; color: #ccc; margin-top: 0.4rem; margin-bottom: 0.4rem;">Selected: ${selectedCount} / 3</div>
+                <button id="confirmPassButton" class="tt-modal-button ${confirmEnabled ? 'btn-green' : ''}" ${confirmEnabled ? "" : "disabled"}>Confirm Pass</button>`
+            );
         } else {
-            this.centerStatusPanel_.innerHTML = `
-                <div style="font-size: 1.4vh; opacity: 0.85;">ROUND ${this.game_.roundNumber}</div>
-                <div style="font-size: 2.2vh; font-weight: bold; color: #ff4d4d; margin-top: 0.1rem;">
-                    No Trump
-                </div>
-                ${this.game_.waitingForHumanPlay ? `<div style="font-size: 1.3vh; color: #ffcc00; margin-top: 0.3rem; animation: pulse 1.5s infinite;">YOUR TURN</div>` : ""}
-            `;
+            this.hideModal_();
         }
-
-        this.centerStatusPanel_.style.left = `${cx - 7}rem`;
-        this.centerStatusPanel_.style.top = `${cy - 2.5}rem`;
-        this.centerStatusPanel_.style.width = "14rem";
 
         // Update logs panel
         this.logPanel_.innerHTML = this.game_.gameLog

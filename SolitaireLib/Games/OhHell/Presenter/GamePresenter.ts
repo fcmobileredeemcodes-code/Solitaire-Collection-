@@ -16,9 +16,8 @@ export class GamePresenter extends TrickTakingGamePresenterBase<Game> {
     constructor(game: Game, rootView: IView) {
         super(game, rootView);
 
-        // Listen for bid button clicks in the center panel (using event delegation)
-        this.centerStatusPanel_.style.pointerEvents = "auto";
-        this.centerStatusPanel_.addEventListener("click", (e) => {
+        // Listen for bid button clicks in the modal
+        this.modalBody_.addEventListener("click", (e) => {
             const target = e.target as HTMLElement;
             if (target && target.classList.contains("bidButton")) {
                 e.preventDefault();
@@ -144,7 +143,59 @@ export class GamePresenter extends TrickTakingGamePresenterBase<Game> {
             }
         }
 
-        // Update Center Status Panel
+        // Update Center Status Panel & Modal
+        const suitSymbols = {
+            [Suit.Spades]: "&spades; Spades",
+            [Suit.Hearts]: "&hearts; Hearts",
+            [Suit.Diamonds]: "&diams; Diamonds",
+            [Suit.Clubs]: "&clubs; Clubs",
+            [Suit.None]: "No Trump",
+        };
+        const suitColors = {
+            [Suit.Spades]: "#ffffff",
+            [Suit.Hearts]: "#ff4d4d",
+            [Suit.Diamonds]: "#ff4d4d",
+            [Suit.Clubs]: "#ffffff",
+            [Suit.None]: "#ffd700",
+        };
+        const trumpSuit = this.game_.trumpSuit;
+        const trumpText = suitSymbols[trumpSuit] || "No Trump";
+        const trumpColor = suitColors[trumpSuit] || "#ffffff";
+
+        let revealedText = "";
+        if (this.game_.revealedTrumpCard) {
+            const suitCharMap = {
+                [Suit.Spades]: "♠",
+                [Suit.Hearts]: "♥",
+                [Suit.Diamonds]: "♦",
+                [Suit.Clubs]: "♣",
+                [Suit.None]: "",
+            };
+            const ranksMap: Record<number, string> = {
+                14: "A",
+                11: "J",
+                12: "Q",
+                13: "K",
+            };
+            const rVal = this.game_.revealedTrumpCard.rank;
+            const rStr = ranksMap[rVal] || rVal.toString();
+            const sStr = suitCharMap[this.game_.revealedTrumpCard.suit] || "";
+            revealedText = `<div style="font-size: 1.3vh; color: #aaa; margin-top: 0.2rem;">Revealed: ${rStr}${sStr}</div>`;
+        }
+
+        this.centerStatusPanel_.innerHTML = `
+            <div style="font-size: 1.4vh; opacity: 0.85;">ROUND ${this.game_.roundNumber} (of 10)</div>
+            <div style="font-size: 2.2vh; font-weight: bold; color: ${trumpColor}; margin-top: 0.1rem;">
+                Trump: ${trumpText}
+            </div>
+            ${revealedText}
+            ${(!this.game_.isBiddingPhase && this.game_.waitingForHumanPlay) ? `<div style="font-size: 1.3vh; color: #ffcc00; margin-top: 0.3rem; animation: pulse 1.5s infinite;">YOUR TURN</div>` : ""}
+        `;
+
+        this.centerStatusPanel_.style.left = `${cx - 8}rem`;
+        this.centerStatusPanel_.style.top = `${cy - 3}rem`;
+        this.centerStatusPanel_.style.width = "16rem";
+
         if (this.game_.isBiddingPhase) {
             const handSize = 11 - this.game_.roundNumber;
             const biddingPlayer = this.game_.players[this.game_.biddingPlayerIndex];
@@ -153,87 +204,26 @@ export class GamePresenter extends TrickTakingGamePresenterBase<Game> {
                 let buttonsHtml = "";
                 for (let b = 0; b <= handSize; ++b) {
                     buttonsHtml += `
-                        <button class="bidButton" data-bid="${b}" style="
-                            background: #ffcc00;
-                            color: #111;
-                            border: none;
-                            padding: 0.35rem 0.65rem;
-                            margin: 0.2rem;
-                            border-radius: 0.25rem;
-                            font-size: 1.4vh;
-                            font-weight: bold;
-                            cursor: pointer;
-                            transition: transform 0.1s, background 0.2s;
-                        ">${b}</button>
+                        <button class="bidButton tt-modal-button" data-bid="${b}">${b}</button>
                     `;
                 }
 
-                this.centerStatusPanel_.innerHTML = `
-                    <div style="font-size: 1.3vh; opacity: 0.85; font-weight: bold; color: #ffcc00; letter-spacing: 0.05rem;">BIDDING PHASE</div>
-                    <div style="font-size: 1.5vh; margin-top: 0.2rem; color: #fff;">Choose your bid (0 to ${handSize}):</div>
-                    <div style="display: flex; flex-wrap: wrap; justify-content: center; margin-top: 0.5rem; max-width: 14rem;">
-                        ${buttonsHtml}
-                    </div>
-                `;
+                this.showModal_(
+                    "Bidding Phase",
+                    `<div style="margin-bottom: 0.6rem;">Choose your bid (0 to ${handSize}):</div>
+                     <div style="display: flex; flex-wrap: wrap; justify-content: center; max-width: 18rem;">
+                         ${buttonsHtml}
+                     </div>`
+                );
             } else {
-                this.centerStatusPanel_.innerHTML = `
-                    <div style="font-size: 1.3vh; opacity: 0.85; font-weight: bold; color: #ffcc00; letter-spacing: 0.05rem;">BIDDING PHASE</div>
-                    <div style="font-size: 1.5vh; margin-top: 0.2rem; color: #fff;">Waiting for <strong>${biddingPlayer.name}</strong> to bid...</div>
-                `;
+                this.showModal_(
+                    "Bidding Phase",
+                    `<div>Waiting for <strong>${biddingPlayer.name}</strong> to bid...</div>`
+                );
             }
         } else {
-            const suitSymbols = {
-                [Suit.Spades]: "&spades; Spades",
-                [Suit.Hearts]: "&hearts; Hearts",
-                [Suit.Diamonds]: "&diams; Diamonds",
-                [Suit.Clubs]: "&clubs; Clubs",
-                [Suit.None]: "No Trump",
-            };
-            const suitColors = {
-                [Suit.Spades]: "#ffffff",
-                [Suit.Hearts]: "#ff4d4d",
-                [Suit.Diamonds]: "#ff4d4d",
-                [Suit.Clubs]: "#ffffff",
-                [Suit.None]: "#ffd700",
-            };
-            const trumpSuit = this.game_.trumpSuit;
-            const trumpText = suitSymbols[trumpSuit] || "No Trump";
-            const trumpColor = suitColors[trumpSuit] || "#ffffff";
-
-            let revealedText = "";
-            if (this.game_.revealedTrumpCard) {
-                const suitCharMap = {
-                    [Suit.Spades]: "♠",
-                    [Suit.Hearts]: "♥",
-                    [Suit.Diamonds]: "♦",
-                    [Suit.Clubs]: "♣",
-                    [Suit.None]: "",
-                };
-                const ranksMap: Record<number, string> = {
-                    14: "A",
-                    11: "J",
-                    12: "Q",
-                    13: "K",
-                };
-                const rVal = this.game_.revealedTrumpCard.rank;
-                const rStr = ranksMap[rVal] || rVal.toString();
-                const sStr = suitCharMap[this.game_.revealedTrumpCard.suit] || "";
-                revealedText = `<div style="font-size: 1.3vh; color: #aaa; margin-top: 0.2rem;">Revealed: ${rStr}${sStr}</div>`;
-            }
-
-            this.centerStatusPanel_.innerHTML = `
-                <div style="font-size: 1.4vh; opacity: 0.85;">ROUND ${this.game_.roundNumber} (of 10)</div>
-                <div style="font-size: 2.2vh; font-weight: bold; color: ${trumpColor}; margin-top: 0.1rem;">
-                    Trump: ${trumpText}
-                </div>
-                ${revealedText}
-                ${this.game_.waitingForHumanPlay ? `<div style="font-size: 1.3vh; color: #ffcc00; margin-top: 0.3rem; animation: pulse 1.5s infinite;">YOUR TURN</div>` : ""}
-            `;
+            this.hideModal_();
         }
-
-        this.centerStatusPanel_.style.left = `${cx - 8}rem`;
-        this.centerStatusPanel_.style.top = `${cy - 3}rem`;
-        this.centerStatusPanel_.style.width = "16rem";
 
         // Update logs panel
         this.logPanel_.innerHTML = this.game_.gameLog

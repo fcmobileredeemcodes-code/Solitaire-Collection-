@@ -25,8 +25,8 @@ export class GamePresenter extends TrickTakingGamePresenterBase<Game> {
     constructor(game: Game, rootView: IView) {
         super(game, rootView);
 
-        this.centerStatusPanel_.style.pointerEvents = "auto";
-        this.centerStatusPanel_.addEventListener("click", (e) => {
+        // Listen for actions in the modal
+        this.modalBody_.addEventListener("click", (e) => {
             const target = e.target as HTMLElement;
             if (!target) return;
 
@@ -79,8 +79,8 @@ export class GamePresenter extends TrickTakingGamePresenterBase<Game> {
             }
         });
 
-        // Contract form change listeners
-        this.centerStatusPanel_.addEventListener("change", (e) => {
+        // Contract form change listeners in the modal
+        this.modalBody_.addEventListener("change", (e) => {
             const target = e.target as HTMLSelectElement | HTMLInputElement;
             if (!target) return;
 
@@ -231,7 +231,7 @@ export class GamePresenter extends TrickTakingGamePresenterBase<Game> {
             }
         }
 
-        // Update Center Status Panel with Skat-specific screens
+        // Update Center Status Panel with Skat-specific screens and Modal
         this.updateCenterStatusHTML_(cx, cy);
 
         // Update logs panel
@@ -243,154 +243,9 @@ export class GamePresenter extends TrickTakingGamePresenterBase<Game> {
     }
 
     private updateCenterStatusHTML_(cx: number, cy: number) {
-        if (this.game_.isBiddingPhase) {
-            const currentBidVal = this.game_.currentBid;
-            const proposedVal = this.game_.proposedBid;
-            const isHumanTurn = this.game_.waitingForHumanBid;
+        const isPlayPhase = !this.game_.isBiddingPhase && !this.game_.isSkatPickupPhase && !this.game_.waitingForHumanDiscard && !this.game_.isContractSelectionPhase;
 
-            const nextValidBid = this.game_.getNextValidBid_(currentBidVal);
-
-            let biddingControlsHTML = "";
-            if (isHumanTurn) {
-                if (this.game_.biddingState === "active_to_propose") {
-                    biddingControlsHTML = `
-                        <div style="display: flex; gap: 0.5rem; margin-top: 0.4rem;">
-                            <button id="bidProposeButton" style="${btnStyle("#00cc66")}">Bid ${nextValidBid}</button>
-                            <button id="bidPassButton" style="${btnStyle("#ff4d4d")}">Pass</button>
-                        </div>
-                    `;
-                } else {
-                    biddingControlsHTML = `
-                        <div style="display: flex; gap: 0.5rem; margin-top: 0.4rem;">
-                            <button id="bidYesButton" style="${btnStyle("#00cc66")}">Yes (Hold ${proposedVal})</button>
-                            <button id="bidPassButton" style="${btnStyle("#ff4d4d")}">Pass</button>
-                        </div>
-                    `;
-                }
-            } else {
-                biddingControlsHTML = `<div style="font-size: 1.2vh; color: #aaa; margin-top: 0.4rem;">AI Deciding...</div>`;
-            }
-
-            const stateText = this.game_.biddingState === "active_to_propose" ? "Your turn to propose a bid." : `AI proposed ${proposedVal}. Hold or pass?`;
-
-            this.centerStatusPanel_.innerHTML = `
-                <div style="font-size: 1.2vh; opacity: 0.85; font-weight: bold; color: #ffcc00; letter-spacing: 0.05rem;">BIDDING PHASE</div>
-                <div style="font-size: 1.5vh; margin-top: 0.2rem; color: #fff;">Current High Bid: <strong>${currentBidVal || "None (18)"}</strong></div>
-                <div style="font-size: 1.2vh; color: #ccc; margin-top: 0.2rem;">${stateText}</div>
-                ${biddingControlsHTML}
-            `;
-            this.centerStatusPanel_.style.left = `${cx - 9}rem`;
-            this.centerStatusPanel_.style.top = `${cy - 3}rem`;
-            this.centerStatusPanel_.style.width = "18rem";
-        }
-
-        else if (this.game_.isSkatPickupPhase) {
-            const isHumanDeclarer = this.game_.declarerIndex === 0;
-            if (isHumanDeclarer) {
-                this.centerStatusPanel_.innerHTML = `
-                    <div style="font-size: 1.2vh; opacity: 0.85; font-weight: bold; color: #ffcc00;">YOU WON BIDDING! (${this.game_.currentBid})</div>
-                    <div style="font-size: 1.4vh; margin-top: 0.2rem; color: #fff;">Do you want to pick up the face-down Skat?</div>
-                    <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
-                        <button id="chooseSkatPickup" style="${btnStyle("#00cc66")}">Pick Up Skat</button>
-                        <button id="chooseHandGame" style="${btnStyle("#0088cc")}">Hand Game (+1 mult)</button>
-                    </div>
-                `;
-            } else {
-                this.centerStatusPanel_.innerHTML = `
-                    <div style="font-size: 1.4vh; color: #ccc;">AI Declarer choice...</div>
-                `;
-            }
-            this.centerStatusPanel_.style.left = `${cx - 9}rem`;
-            this.centerStatusPanel_.style.top = `${cy - 2.5}rem`;
-            this.centerStatusPanel_.style.width = "18rem";
-        }
-
-        else if (this.game_.waitingForHumanDiscard) {
-            const selectedCount = this.selectedDiscardCards.length;
-            const confirmEnabled = selectedCount === 2;
-
-            this.centerStatusPanel_.innerHTML = `
-                <div style="font-size: 1.2vh; opacity: 0.85; font-weight: bold; color: #ffcc00;">DISCARD PHASE</div>
-                <div style="font-size: 1.4vh; margin-top: 0.2rem; color: #fff;">Select exactly <strong>2 cards</strong> to discard back to Skat</div>
-                <div style="font-size: 1.2vh; color: #ccc; margin-top: 0.1rem;">Selected: ${selectedCount} / 2</div>
-                <button id="confirmDiscardButton" ${confirmEnabled ? "" : "disabled"} style="${btnStyle(confirmEnabled ? "#00cc66" : "#444")}">Confirm Discard</button>
-            `;
-            this.centerStatusPanel_.style.left = `${cx - 9}rem`;
-            this.centerStatusPanel_.style.top = `${cy - 2.5}rem`;
-            this.centerStatusPanel_.style.width = "18rem";
-        }
-
-        else if (this.game_.isContractSelectionPhase) {
-            const isHuman = this.game_.waitingForHumanContract;
-            if (isHuman) {
-                // Generate Contract Naming view
-                let suitSelectHTML = "";
-                if (this.selectedContractType === "Suit") {
-                    suitSelectHTML = `
-                        <div style="margin-top: 0.3rem;">
-                            <label style="font-size: 1.2vh; color: #ccc;">Trump Suit: </label>
-                            <select id="trumpSuitSelect" style="${selectStyle()}">
-                                <option value="${Suit.Clubs}" ${this.selectedTrumpSuit === Suit.Clubs ? "selected" : ""}>♣ Clubs</option>
-                                <option value="${Suit.Spades}" ${this.selectedTrumpSuit === Suit.Spades ? "selected" : ""}>♠ Spades</option>
-                                <option value="${Suit.Hearts}" ${this.selectedTrumpSuit === Suit.Hearts ? "selected" : ""}>♥ Hearts</option>
-                                <option value="${Suit.Diamonds}" ${this.selectedTrumpSuit === Suit.Diamonds ? "selected" : ""}>♦ Diamonds</option>
-                            </select>
-                        </div>
-                    `;
-                }
-
-                let announceHTML = "";
-                if (this.game_.isHandGame) {
-                    announceHTML = `
-                        <div style="margin-top: 0.3rem;">
-                            <label style="font-size: 1.2vh; color: #ccc;">Announce: </label>
-                            <select id="announcementSelect" style="${selectStyle()}">
-                                <option value="None" ${this.selectedAnnouncement === "None" ? "selected" : ""}>None</option>
-                                <option value="Schneider" ${this.selectedAnnouncement === "Schneider" ? "selected" : ""}>Schneider</option>
-                                <option value="Schwarz" ${this.selectedAnnouncement === "Schwarz" ? "selected" : ""}>Schwarz</option>
-                                <option value="Ouvert" ${this.selectedAnnouncement === "Ouvert" ? "selected" : ""}>Ouvert</option>
-                            </select>
-                        </div>
-                    `;
-                } else if (this.selectedContractType === "Null") {
-                    announceHTML = `
-                        <div style="margin-top: 0.3rem;">
-                            <label style="font-size: 1.2vh; color: #ccc;">Null Mode: </label>
-                            <select id="announcementSelect" style="${selectStyle()}">
-                                <option value="None" ${this.selectedAnnouncement === "None" ? "selected" : ""}>Normal Null</option>
-                                <option value="Ouvert" ${this.selectedAnnouncement === "Ouvert" ? "selected" : ""}>Null Ouvert</option>
-                            </select>
-                        </div>
-                    `;
-                }
-
-                this.centerStatusPanel_.innerHTML = `
-                    <div style="font-size: 1.2vh; opacity: 0.85; font-weight: bold; color: #ffcc00;">SELECT CONTRACT</div>
-                    <div style="margin-top: 0.3rem;">
-                        <label style="font-size: 1.2vh; color: #ccc;">Type: </label>
-                        <select id="contractTypeSelect" style="${selectStyle()}">
-                            <option value="Suit" ${this.selectedContractType === "Suit" ? "selected" : ""}>Suit Game</option>
-                            <option value="Grand" ${this.selectedContractType === "Grand" ? "selected" : ""}>Grand</option>
-                            <option value="Null" ${this.selectedContractType === "Null" ? "selected" : ""}>Null</option>
-                        </select>
-                    </div>
-                    ${suitSelectHTML}
-                    ${announceHTML}
-                    <button id="declareContractButton" style="${btnStyle("#00cc66")}; margin-top: 0.5rem; width: 100%;">Declare Contract</button>
-                `;
-            } else {
-                this.centerStatusPanel_.innerHTML = `
-                    <div style="font-size: 1.4vh; color: #ccc;">AI Declaring Contract...</div>
-                `;
-            }
-            this.centerStatusPanel_.style.left = `${cx - 9}rem`;
-            this.centerStatusPanel_.style.top = `${cy - 4}rem`;
-            this.centerStatusPanel_.style.width = "18rem";
-        }
-
-        else {
-            // Play Phase
-            const activePlayer = this.game_.players[this.game_.activePlayerIndex];
+        if (isPlayPhase) {
             const isHumanTurn = this.game_.waitingForHumanPlay;
             const contractLabel = this.game_.getContractDisplayName_();
             const declarerName = this.game_.players[this.game_.declarerIndex]?.name || "";
@@ -410,6 +265,152 @@ export class GamePresenter extends TrickTakingGamePresenterBase<Game> {
             this.centerStatusPanel_.style.left = `${cx - 8}rem`;
             this.centerStatusPanel_.style.top = `${cy - 2.5}rem`;
             this.centerStatusPanel_.style.width = "16rem";
+        } else {
+            this.centerStatusPanel_.innerHTML = `
+                <div style="font-size: 1.1vh; opacity: 0.85; color: #ffcc00; font-weight: bold; text-transform: uppercase;">Skat</div>
+                <div style="font-size: 1.2vh; color: #aaa; margin-top: 0.1rem;">Bidding & Setup Phase</div>
+            `;
+            this.centerStatusPanel_.style.left = `${cx - 8}rem`;
+            this.centerStatusPanel_.style.top = `${cy - 2.5}rem`;
+            this.centerStatusPanel_.style.width = "16rem";
+        }
+
+        if (this.game_.isBiddingPhase) {
+            const currentBidVal = this.game_.currentBid;
+            const proposedVal = this.game_.proposedBid;
+            const isHumanTurn = this.game_.waitingForHumanBid;
+
+            const nextValidBid = this.game_.getNextValidBid_(currentBidVal);
+
+            let biddingControlsHTML = "";
+            if (isHumanTurn) {
+                if (this.game_.biddingState === "active_to_propose") {
+                    biddingControlsHTML = `
+                        <div style="display: flex; gap: 0.5rem; margin-top: 0.4rem;">
+                            <button id="bidProposeButton" class="tt-modal-button btn-green">Bid ${nextValidBid}</button>
+                            <button id="bidPassButton" class="tt-modal-button btn-red">Pass</button>
+                        </div>
+                    `;
+                } else {
+                    biddingControlsHTML = `
+                        <div style="display: flex; gap: 0.5rem; margin-top: 0.4rem;">
+                            <button id="bidYesButton" class="tt-modal-button btn-green">Yes (Hold ${proposedVal})</button>
+                            <button id="bidPassButton" class="tt-modal-button btn-red">Pass</button>
+                        </div>
+                    `;
+                }
+            } else {
+                biddingControlsHTML = `<div style="font-size: 1.2vh; color: #aaa; margin-top: 0.4rem;">AI Deciding...</div>`;
+            }
+
+            const stateText = this.game_.biddingState === "active_to_propose" ? "Your turn to propose a bid." : `AI proposed ${proposedVal}. Hold or pass?`;
+
+            this.showModal_(
+                "Bidding Phase",
+                `<div style="font-size: 1.5vh; margin-top: 0.2rem; color: #fff;">Current High Bid: <strong>${currentBidVal || "None (18)"}</strong></div>
+                 <div style="font-size: 1.2vh; color: #ccc; margin-top: 0.2rem; margin-bottom: 0.4rem;">${stateText}</div>
+                 ${biddingControlsHTML}`
+            );
+        }
+
+        else if (this.game_.isSkatPickupPhase) {
+            const isHumanDeclarer = this.game_.declarerIndex === 0;
+            if (isHumanDeclarer) {
+                this.showModal_(
+                    "You Won Bidding! (" + this.game_.currentBid + ")",
+                    `<div style="font-size: 1.4vh; margin-top: 0.2rem; color: #fff; margin-bottom: 0.6rem;">Do you want to pick up the face-down Skat?</div>
+                     <div style="display: flex; gap: 0.5rem;">
+                         <button id="chooseSkatPickup" class="tt-modal-button btn-green">Pick Up Skat</button>
+                         <button id="chooseHandGame" class="tt-modal-button btn-blue">Hand Game (+1 mult)</button>
+                     </div>`
+                );
+            } else {
+                this.showModal_(
+                    "Skat Pickup",
+                    `<div style="font-size: 1.4vh; color: #ccc;">AI Declarer choice...</div>`
+                );
+            }
+        }
+
+        else if (this.game_.waitingForHumanDiscard) {
+            const selectedCount = this.selectedDiscardCards.length;
+            const confirmEnabled = selectedCount === 2;
+
+            this.showModal_(
+                "Discard Phase",
+                `<div style="font-size: 1.4vh; margin-top: 0.2rem; color: #fff; margin-bottom: 0.4rem;">Select exactly <strong>2 cards</strong> to discard back to Skat</div>
+                 <div style="font-size: 1.2vh; color: #ccc; margin-top: 0.1rem; margin-bottom: 0.4rem;">Selected: ${selectedCount} / 2</div>
+                 <button id="confirmDiscardButton" class="tt-modal-button ${confirmEnabled ? 'btn-green' : ''}" ${confirmEnabled ? "" : "disabled"}>Confirm Discard</button>`
+            );
+        }
+
+        else if (this.game_.isContractSelectionPhase) {
+            const isHuman = this.game_.waitingForHumanContract;
+            if (isHuman) {
+                let suitSelectHTML = "";
+                if (this.selectedContractType === "Suit") {
+                    suitSelectHTML = `
+                        <div style="margin-top: 0.4rem; display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                            <label style="font-size: 1.2vh; color: #ccc;">Trump Suit: </label>
+                            <select id="trumpSuitSelect" class="tt-modal-select">
+                                <option value="${Suit.Clubs}" ${this.selectedTrumpSuit === Suit.Clubs ? "selected" : ""}>♣ Clubs</option>
+                                <option value="${Suit.Spades}" ${this.selectedTrumpSuit === Suit.Spades ? "selected" : ""}>♠ Spades</option>
+                                <option value="${Suit.Hearts}" ${this.selectedTrumpSuit === Suit.Hearts ? "selected" : ""}>♥ Hearts</option>
+                                <option value="${Suit.Diamonds}" ${this.selectedTrumpSuit === Suit.Diamonds ? "selected" : ""}>♦ Diamonds</option>
+                            </select>
+                        </div>
+                    `;
+                }
+
+                let announceHTML = "";
+                if (this.game_.isHandGame) {
+                    announceHTML = `
+                        <div style="margin-top: 0.4rem; display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                            <label style="font-size: 1.2vh; color: #ccc;">Announce: </label>
+                            <select id="announcementSelect" class="tt-modal-select">
+                                <option value="None" ${this.selectedAnnouncement === "None" ? "selected" : ""}>None</option>
+                                <option value="Schneider" ${this.selectedAnnouncement === "Schneider" ? "selected" : ""}>Schneider</option>
+                                <option value="Schwarz" ${this.selectedAnnouncement === "Schwarz" ? "selected" : ""}>Schwarz</option>
+                                <option value="Ouvert" ${this.selectedAnnouncement === "Ouvert" ? "selected" : ""}>Ouvert</option>
+                            </select>
+                        </div>
+                    `;
+                } else if (this.selectedContractType === "Null") {
+                    announceHTML = `
+                        <div style="margin-top: 0.4rem; display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                            <label style="font-size: 1.2vh; color: #ccc;">Null Mode: </label>
+                            <select id="announcementSelect" class="tt-modal-select">
+                                <option value="None" ${this.selectedAnnouncement === "None" ? "selected" : ""}>Normal Null</option>
+                                <option value="Ouvert" ${this.selectedAnnouncement === "Ouvert" ? "selected" : ""}>Null Ouvert</option>
+                            </select>
+                        </div>
+                    `;
+                }
+
+                this.showModal_(
+                    "Select Contract",
+                    `<div style="margin-top: 0.3rem; display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                        <label style="font-size: 1.2vh; color: #ccc;">Type: </label>
+                        <select id="contractTypeSelect" class="tt-modal-select">
+                            <option value="Suit" ${this.selectedContractType === "Suit" ? "selected" : ""}>Suit Game</option>
+                            <option value="Grand" ${this.selectedContractType === "Grand" ? "selected" : ""}>Grand</option>
+                            <option value="Null" ${this.selectedContractType === "Null" ? "selected" : ""}>Null</option>
+                        </select>
+                    </div>
+                    ${suitSelectHTML}
+                    ${announceHTML}
+                    <button id="declareContractButton" class="tt-modal-button btn-green" style="margin-top: 0.8rem; width: 100%;">Declare Contract</button>`
+                );
+            } else {
+                this.showModal_(
+                    "Select Contract",
+                    `<div style="font-size: 1.4vh; color: #ccc;">AI Declaring Contract...</div>`
+                );
+            }
+        }
+
+        else {
+            this.hideModal_();
         }
     }
 
@@ -520,31 +521,4 @@ export class GamePresenter extends TrickTakingGamePresenterBase<Game> {
             cv.element.style.transform = "none";
         }
     }
-}
-
-function btnStyle(bg: string) {
-    return `
-        background: ${bg};
-        color: #fff;
-        border: none;
-        padding: 0.35rem 0.8rem;
-        border-radius: 0.3rem;
-        font-size: 1.3vh;
-        font-weight: bold;
-        cursor: pointer;
-        transition: background 0.2s;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-    `;
-}
-
-function selectStyle() {
-    return `
-        background: #222;
-        color: #fff;
-        border: 1px solid #444;
-        padding: 0.2rem;
-        border-radius: 0.2rem;
-        font-size: 1.2vh;
-        font-family: inherit;
-    `;
 }

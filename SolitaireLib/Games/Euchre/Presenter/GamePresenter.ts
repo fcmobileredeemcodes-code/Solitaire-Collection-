@@ -16,9 +16,8 @@ export class GamePresenter extends TrickTakingGamePresenterBase<Game> {
     constructor(game: Game, rootView: IView) {
         super(game, rootView);
 
-        // Listen for bid/discard events (using event delegation)
-        this.centerStatusPanel_.style.pointerEvents = "auto";
-        this.centerStatusPanel_.addEventListener("click", (e) => {
+        // Listen for bid/discard events in the modal
+        this.modalBody_.addEventListener("click", (e) => {
             const target = e.target as HTMLElement;
             if (!target) return;
 
@@ -31,7 +30,7 @@ export class GamePresenter extends TrickTakingGamePresenterBase<Game> {
                 const suit = suitAttr ? parseInt(suitAttr, 10) as Suit : undefined;
 
                 // Check "Alone" checkbox
-                const aloneCheckbox = this.centerStatusPanel_.querySelector("#aloneCheckbox") as HTMLInputElement;
+                const aloneCheckbox = this.modalBody_.querySelector("#aloneCheckbox") as HTMLInputElement;
                 const isAlone = aloneCheckbox ? aloneCheckbox.checked : false;
 
                 let finalAction: "pass" | "order-up" | "name-suit" | "alone" = action;
@@ -189,7 +188,45 @@ export class GamePresenter extends TrickTakingGamePresenterBase<Game> {
             }
         }
 
-        // Update Center Status Panel
+        // Update Center Status Panel & Modal
+        const suitSymbols = {
+            [Suit.Spades]: "&spades; Spades",
+            [Suit.Hearts]: "&hearts; Hearts",
+            [Suit.Diamonds]: "&diams; Diamonds",
+            [Suit.Clubs]: "&clubs; Clubs",
+            [Suit.None]: "No Trump",
+        };
+        const suitColors = {
+            [Suit.Spades]: "#ffffff",
+            [Suit.Hearts]: "#ff4d4d",
+            [Suit.Diamonds]: "#ff4d4d",
+            [Suit.Clubs]: "#ffffff",
+            [Suit.None]: "#ffd700",
+        };
+        const trumpSuit = this.game_.trumpSuit;
+        const trumpText = suitSymbols[trumpSuit] || "No Trump";
+        const trumpColor = suitColors[trumpSuit] || "#ffffff";
+
+        let makerLogStr = "";
+        const makerPlayer = this.game_.players[this.game_.makerPlayerIndex];
+        if (makerPlayer) {
+            const makerTeamLabel = makerPlayer.teamId === "TeamA" ? "Team A (You)" : "Team B (Opps)";
+            makerLogStr = `<div style="font-size: 1.2vh; color: #66ffbb; margin-top: 0.1rem;">Makers: ${makerTeamLabel}</div>`;
+        }
+
+        this.centerStatusPanel_.innerHTML = `
+            <div style="font-size: 1.4vh; opacity: 0.85;">ROUND ${this.game_.roundNumber}</div>
+            <div style="font-size: 2.1vh; font-weight: bold; color: ${trumpColor}; margin-top: 0.1rem;">
+                Trump: ${trumpText}
+            </div>
+            ${makerLogStr}
+            ${(!this.game_.isBiddingPhase && !this.game_.waitingForHumanDiscard && this.game_.waitingForHumanPlay) ? `<div style="font-size: 1.3vh; color: #ffcc00; margin-top: 0.3rem; animation: pulse 1.5s infinite;">YOUR TURN</div>` : ""}
+        `;
+
+        this.centerStatusPanel_.style.left = `${cx - 8}rem`;
+        this.centerStatusPanel_.style.top = `${cy - 3}rem`;
+        this.centerStatusPanel_.style.width = "16rem";
+
         if (this.game_.isBiddingPhase) {
             const biddingPlayer = this.game_.players[this.game_.biddingPlayerIndex];
 
@@ -202,29 +239,22 @@ export class GamePresenter extends TrickTakingGamePresenterBase<Game> {
                     const proposedSuitName = this.getSuitSymbolHtml_(proposedSuit);
 
                     buttonsHtml += `
-                        <button class="bidActionButton" data-action="order-up" style="
-                            background: #00cc66; color: #fff; border: none; padding: 0.4rem 0.8rem; margin: 0.2rem;
-                            border-radius: 0.3rem; font-size: 1.4vh; font-weight: bold; cursor: pointer;
-                        ">Order Up ${proposedSuitName}</button>
-
-                        <button class="bidActionButton" data-action="pass" style="
-                            background: #ff4d4d; color: #fff; border: none; padding: 0.4rem 0.8rem; margin: 0.2rem;
-                            border-radius: 0.3rem; font-size: 1.4vh; font-weight: bold; cursor: pointer;
-                        ">Pass</button>
+                        <button class="bidActionButton tt-modal-button btn-green" data-action="order-up">Order Up ${proposedSuitName}</button>
+                        <button class="bidActionButton tt-modal-button btn-red" data-action="pass">Pass</button>
                     `;
 
-                    this.centerStatusPanel_.innerHTML = `
-                        <div style="font-size: 1.3vh; opacity: 0.85; font-weight: bold; color: #ffcc00; letter-spacing: 0.05rem;">BIDDING ROUND 1</div>
-                        <div style="font-size: 1.4vh; margin-top: 0.2rem; color: #fff;">Order up ${proposedSuitName}?</div>
-                        <div style="margin-top: 0.3rem; font-size: 1.3vh;">
-                            <label style="cursor: pointer; color: #ffd700;">
-                                <input type="checkbox" id="aloneCheckbox" style="cursor: pointer;"> Go Alone
-                            </label>
-                        </div>
-                        <div style="display: flex; justify-content: center; margin-top: 0.5rem;">
-                            ${buttonsHtml}
-                        </div>
-                    `;
+                    this.showModal_(
+                        "Bidding Round 1",
+                        `<div style="margin-bottom: 0.5rem;">Order up ${proposedSuitName}?</div>
+                         <div style="margin-bottom: 0.5rem;">
+                             <label class="tt-modal-checkbox-label">
+                                 <input type="checkbox" id="aloneCheckbox"> Go Alone
+                             </label>
+                         </div>
+                         <div style="display: flex; justify-content: center; gap: 0.5rem;">
+                             ${buttonsHtml}
+                         </div>`
+                    );
                 } else {
                     // Round 2
                     const forbiddenSuit = this.game_.proposedTrumpCard!.suit;
@@ -233,88 +263,46 @@ export class GamePresenter extends TrickTakingGamePresenterBase<Game> {
                     for (const s of availableSuits) {
                         const name = this.getSuitSymbolHtml_(s);
                         buttonsHtml += `
-                            <button class="bidActionButton" data-action="name-suit" data-suit="${s}" style="
-                                background: #33a3ff; color: #fff; border: none; padding: 0.35rem 0.6rem; margin: 0.15rem;
-                                border-radius: 0.3rem; font-size: 1.3vh; font-weight: bold; cursor: pointer;
-                            ">${name}</button>
+                            <button class="bidActionButton tt-modal-button btn-blue" data-action="name-suit" data-suit="${s}">${name}</button>
                         `;
                     }
 
-                    // Stick the dealer check: if dealer index, Pass is disabled/hidden
                     if (!isDealer) {
                         buttonsHtml += `
-                            <button class="bidActionButton" data-action="pass" style="
-                                background: #ff4d4d; color: #fff; border: none; padding: 0.35rem 0.6rem; margin: 0.15rem;
-                                border-radius: 0.3rem; font-size: 1.3vh; font-weight: bold; cursor: pointer;
-                            ">Pass</button>
+                            <button class="bidActionButton tt-modal-button btn-red" data-action="pass">Pass</button>
                         `;
                     }
 
-                    this.centerStatusPanel_.innerHTML = `
-                        <div style="font-size: 1.3vh; opacity: 0.85; font-weight: bold; color: #ffcc00; letter-spacing: 0.05rem;">BIDDING ROUND 2</div>
-                        <div style="font-size: 1.4vh; margin-top: 0.2rem; color: #fff;">
-                            ${isDealer ? "<strong>Stick the Dealer!</strong> You must name a trump suit:" : "Name a trump suit or pass:"}
-                        </div>
-                        <div style="margin-top: 0.3rem; font-size: 1.3vh;">
-                            <label style="cursor: pointer; color: #ffd700;">
-                                <input type="checkbox" id="aloneCheckbox" style="cursor: pointer;"> Go Alone
-                            </label>
-                        </div>
-                        <div style="display: flex; flex-wrap: wrap; justify-content: center; margin-top: 0.5rem; max-width: 15rem;">
-                            ${buttonsHtml}
-                        </div>
-                    `;
+                    this.showModal_(
+                        "Bidding Round 2",
+                        `<div style="margin-bottom: 0.5rem;">
+                             ${isDealer ? "<strong>Stick the Dealer!</strong> You must name a trump suit:" : "Name a trump suit or pass:"}
+                         </div>
+                         <div style="margin-bottom: 0.5rem;">
+                             <label class="tt-modal-checkbox-label">
+                                 <input type="checkbox" id="aloneCheckbox"> Go Alone
+                             </label>
+                         </div>
+                         <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 0.4rem; max-width: 18rem;">
+                             ${buttonsHtml}
+                         </div>`
+                    );
                 }
             } else {
-                this.centerStatusPanel_.innerHTML = `
-                    <div style="font-size: 1.3vh; opacity: 0.85; font-weight: bold; color: #ffcc00; letter-spacing: 0.05rem;">BIDDING PHASE</div>
-                    <div style="font-size: 1.5vh; margin-top: 0.2rem; color: #fff;">Waiting for <strong>${biddingPlayer.name}</strong> to bid...</div>
-                `;
+                this.showModal_(
+                    "Bidding Phase",
+                    `<div>Waiting for <strong>${biddingPlayer.name}</strong> to bid...</div>`
+                );
             }
         } else if (this.game_.waitingForHumanDiscard) {
-            this.centerStatusPanel_.innerHTML = `
-                <div style="font-size: 1.3vh; opacity: 0.85; font-weight: bold; color: #ffcc00; letter-spacing: 0.05rem;">DISCARDING</div>
-                <div style="font-size: 1.5vh; margin-top: 0.2rem; color: #fff; animation: pulse 1.5s infinite;">You picked up the proposed card!<br/>Click a card in your hand to discard.</div>
-            `;
+            this.showModal_(
+                "Discarding",
+                `<div style="font-weight: bold; margin-bottom: 0.4rem;">You picked up the proposed card!</div>
+                 <div>Click a card in your hand to discard.</div>`
+            );
         } else {
-            const suitSymbols = {
-                [Suit.Spades]: "&spades; Spades",
-                [Suit.Hearts]: "&hearts; Hearts",
-                [Suit.Diamonds]: "&diams; Diamonds",
-                [Suit.Clubs]: "&clubs; Clubs",
-                [Suit.None]: "No Trump",
-            };
-            const suitColors = {
-                [Suit.Spades]: "#ffffff",
-                [Suit.Hearts]: "#ff4d4d",
-                [Suit.Diamonds]: "#ff4d4d",
-                [Suit.Clubs]: "#ffffff",
-                [Suit.None]: "#ffd700",
-            };
-            const trumpSuit = this.game_.trumpSuit;
-            const trumpText = suitSymbols[trumpSuit] || "No Trump";
-            const trumpColor = suitColors[trumpSuit] || "#ffffff";
-
-            let makerLogStr = "";
-            const makerPlayer = this.game_.players[this.game_.makerPlayerIndex];
-            if (makerPlayer) {
-                const makerTeamLabel = makerPlayer.teamId === "TeamA" ? "Team A (You)" : "Team B (Opps)";
-                makerLogStr = `<div style="font-size: 1.2vh; color: #66ffbb; margin-top: 0.1rem;">Makers: ${makerTeamLabel}</div>`;
-            }
-
-            this.centerStatusPanel_.innerHTML = `
-                <div style="font-size: 1.4vh; opacity: 0.85;">ROUND ${this.game_.roundNumber}</div>
-                <div style="font-size: 2.1vh; font-weight: bold; color: ${trumpColor}; margin-top: 0.1rem;">
-                    Trump: ${trumpText}
-                </div>
-                ${makerLogStr}
-                ${this.game_.waitingForHumanPlay ? `<div style="font-size: 1.3vh; color: #ffcc00; margin-top: 0.3rem; animation: pulse 1.5s infinite;">YOUR TURN</div>` : ""}
-            `;
+            this.hideModal_();
         }
-
-        this.centerStatusPanel_.style.left = `${cx - 8}rem`;
-        this.centerStatusPanel_.style.top = `${cy - 3}rem`;
-        this.centerStatusPanel_.style.width = "16rem";
 
         // Update logs panel
         this.logPanel_.innerHTML = this.game_.gameLog
