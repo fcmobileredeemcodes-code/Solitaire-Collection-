@@ -30,9 +30,8 @@ export class GamePresenter extends TrickTakingGamePresenterBase<Game> {
         this.trumpCyclePanel_.style.pointerEvents = "none";
         this.rootView_.element.appendChild(this.trumpCyclePanel_);
 
-        // Listen for exchange phase action clicks in the center panel
-        this.centerStatusPanel_.style.pointerEvents = "auto";
-        this.centerStatusPanel_.addEventListener("click", (e) => {
+        // Listen for exchange phase action clicks in the modal body
+        this.modalBody_.addEventListener("click", (e) => {
             const target = e.target as HTMLElement;
             if (target && target.id === "confirmExchangeButton") {
                 e.preventDefault();
@@ -257,7 +256,38 @@ export class GamePresenter extends TrickTakingGamePresenterBase<Game> {
             }
         }
 
-        // Update Center Status Panel
+        // Update Center Status Panel and Modal
+        const suitSymbols = {
+            [Suit.Spades]: "&spades; Spades",
+            [Suit.Hearts]: "&hearts; Hearts",
+            [Suit.Diamonds]: "&diams; Diamonds",
+            [Suit.Clubs]: "&clubs; Clubs",
+            [Suit.None]: "No Trump",
+        };
+        const suitColors = {
+            [Suit.Spades]: "#ffffff",
+            [Suit.Hearts]: "#ff4d4d",
+            [Suit.Diamonds]: "#ff4d4d",
+            [Suit.Clubs]: "#ffffff",
+            [Suit.None]: "#ffd700",
+        };
+        const trumpSuit = this.game_.trumpSuit;
+        const trumpText = suitSymbols[trumpSuit] || "No Trump";
+        const trumpColor = suitColors[trumpSuit] || "#ffffff";
+
+        this.centerStatusPanel_.innerHTML = `
+            <div style="font-size: 1.4vh; opacity: 0.85;">ROUND ${this.game_.roundNumber}</div>
+            <div style="font-size: 2.2vh; font-weight: bold; color: ${trumpColor}; margin-top: 0.1rem;">
+                Trump: ${trumpText}
+            </div>
+            ${this.game_.waitingForHumanPlay ? `<div style="font-size: 1.3vh; color: #ffcc00; margin-top: 0.3rem; animation: pulse 1.5s infinite;">YOUR TURN</div>` : ""}
+            ${(this.game_.isExchangePhase) ? `<div style="font-size: 1.3vh; color: #aaa; margin-top: 0.3rem;">Exchange Phase...</div>` : ""}
+        `;
+
+        this.centerStatusPanel_.style.left = `${cx - 8}rem`;
+        this.centerStatusPanel_.style.top = `${cy - 2.5}rem`;
+        this.centerStatusPanel_.style.width = "16rem";
+
         if (this.game_.isExchangePhase) {
             const humanIdx = this.game_.players.findIndex(p => p.isHuman);
             const isHumanTurn = this.game_.currentExchangingPlayerIndex === humanIdx;
@@ -276,72 +306,30 @@ export class GamePresenter extends TrickTakingGamePresenterBase<Game> {
                 const maxAllowed = [7, 5, this.game_.manniPile.length];
                 const maxExchangeLimit = maxAllowed[currentOrderIdx] || 7;
 
-                this.centerStatusPanel_.innerHTML = `
-                    <div style="font-size: 1.3vh; opacity: 0.85; font-weight: bold; color: #ffcc00; letter-spacing: 0.05rem;">EXCHANGE PHASE</div>
-                    <div style="font-size: 1.6vh; margin-top: 0.2rem; color: #fff; font-weight: bold;">Your Turn (${activeRole})</div>
-                    <div style="font-size: 1.4vh; margin-top: 0.2rem; color: #eee;">Select up to <strong>${maxExchangeLimit} cards</strong> to exchange.</div>
-                    <div style="font-size: 1.2vh; color: #ccc; margin-top: 0.2rem;">Selected: ${selectedCount} / ${maxExchangeLimit}</div>
-                    <div style="display: flex; gap: 0.5rem; justify-content: center; margin-top: 0.5rem;">
-                        <button id="confirmExchangeButton" style="
-                            background: #00cc66;
-                            color: #fff;
-                            border: none;
-                            padding: 0.4rem 0.8rem;
-                            border-radius: 0.3rem;
-                            font-size: 1.3vh;
-                            font-weight: bold;
-                            cursor: pointer;
-                        ">Exchange</button>
-                        <button id="declineExchangeButton" style="
-                            background: #ff4d4d;
-                            color: #fff;
-                            border: none;
-                            padding: 0.4rem 0.8rem;
-                            border-radius: 0.3rem;
-                            font-size: 1.3vh;
-                            font-weight: bold;
-                            cursor: pointer;
-                        ">Decline</button>
+                this.showModal_(
+                    "Exchange Phase",
+                    `
+                    <div style="font-size: 1.5vh; color: #fff; margin-bottom: 0.2rem; font-weight: bold;">Your Turn (${activeRole})</div>
+                    <div style="font-size: 1.3vh; color: #eee; margin-bottom: 0.4rem;">Select up to <strong>${maxExchangeLimit} cards</strong> to exchange.</div>
+                    <div style="font-size: 1.2vh; color: #ccc; margin-bottom: 0.6rem;">Selected: ${selectedCount} / ${maxExchangeLimit}</div>
+                    <div style="display: flex; gap: 0.5rem; justify-content: center;">
+                        <button id="confirmExchangeButton">Exchange</button>
+                        <button id="declineExchangeButton" class="decline">Decline</button>
                     </div>
-                `;
+                    `
+                );
             } else {
                 const activePlayer = this.game_.players[this.game_.currentExchangingPlayerIndex];
-                this.centerStatusPanel_.innerHTML = `
-                    <div style="font-size: 1.3vh; opacity: 0.85; font-weight: bold; color: #ffcc00; letter-spacing: 0.05rem;">EXCHANGE PHASE</div>
-                    <div style="font-size: 1.5vh; margin-top: 0.4rem; color: #fff;"><strong>${activePlayer ? activePlayer.name : "AI"}</strong> (${activeRole}) is deciding...</div>
-                `;
+                this.showModal_(
+                    "Exchange Phase",
+                    `
+                    <div style="font-size: 1.5vh; color: #fff;"><strong>${activePlayer ? activePlayer.name : "AI"}</strong> (${activeRole}) is deciding...</div>
+                    `
+                );
             }
         } else {
-            const suitSymbols = {
-                [Suit.Spades]: "&spades; Spades",
-                [Suit.Hearts]: "&hearts; Hearts",
-                [Suit.Diamonds]: "&diams; Diamonds",
-                [Suit.Clubs]: "&clubs; Clubs",
-                [Suit.None]: "No Trump",
-            };
-            const suitColors = {
-                [Suit.Spades]: "#ffffff",
-                [Suit.Hearts]: "#ff4d4d",
-                [Suit.Diamonds]: "#ff4d4d",
-                [Suit.Clubs]: "#ffffff",
-                [Suit.None]: "#ffd700",
-            };
-            const trumpSuit = this.game_.trumpSuit;
-            const trumpText = suitSymbols[trumpSuit] || "No Trump";
-            const trumpColor = suitColors[trumpSuit] || "#ffffff";
-
-            this.centerStatusPanel_.innerHTML = `
-                <div style="font-size: 1.4vh; opacity: 0.85;">ROUND ${this.game_.roundNumber}</div>
-                <div style="font-size: 2.2vh; font-weight: bold; color: ${trumpColor}; margin-top: 0.1rem;">
-                    Trump: ${trumpText}
-                </div>
-                ${this.game_.waitingForHumanPlay ? `<div style="font-size: 1.3vh; color: #ffcc00; margin-top: 0.3rem; animation: pulse 1.5s infinite;">YOUR TURN</div>` : ""}
-            `;
+            this.hideModal_();
         }
-
-        this.centerStatusPanel_.style.left = `${cx - 8}rem`;
-        this.centerStatusPanel_.style.top = `${cy - 2.5}rem`;
-        this.centerStatusPanel_.style.width = "16rem";
 
         // Update logs panel
         this.logPanel_.innerHTML = this.game_.gameLog

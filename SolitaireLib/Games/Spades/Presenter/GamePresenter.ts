@@ -16,9 +16,8 @@ export class GamePresenter extends TrickTakingGamePresenterBase<Game> {
     constructor(game: Game, rootView: IView) {
         super(game, rootView);
 
-        // Listen for bid button clicks in the center panel (using event delegation)
-        this.centerStatusPanel_.style.pointerEvents = "auto";
-        this.centerStatusPanel_.addEventListener("click", (e) => {
+        // Listen for bid button clicks in the modal body (using event delegation)
+        this.modalBody_.addEventListener("click", (e) => {
             const target = e.target as HTMLElement;
             if (target && target.classList.contains("bidButton")) {
                 e.preventDefault();
@@ -158,51 +157,35 @@ export class GamePresenter extends TrickTakingGamePresenterBase<Game> {
             }
         }
 
-        // Update Center Status Panel
-        if (this.game_.isBiddingPhase) {
-            const biddingPlayer = this.game_.players[this.game_.biddingPlayerIndex];
+        // Update Center Status Panel and Modal Dialog
+        this.centerStatusPanel_.innerHTML = `
+            <div style="font-size: 1.4vh; opacity: 0.85;">ROUND ${this.game_.roundNumber}</div>
+            <div style="font-size: 2.2vh; font-weight: bold; color: #ffffff; margin-top: 0.1rem;">
+                Trump: &spades; Spades
+            </div>
+            ${this.game_.waitingForHumanPlay ? `<div style="font-size: 1.3vh; color: #ffcc00; margin-top: 0.3rem; animation: pulse 1.5s infinite;">YOUR TURN</div>` : ""}
+            ${(this.game_.isBiddingPhase && !this.game_.waitingForHumanBid) ? `<div style="font-size: 1.3vh; color: #aaa; margin-top: 0.3rem;">Bidding...</div>` : ""}
+        `;
 
-            if (this.game_.waitingForHumanBid) {
-                let buttonsHtml = "";
-                for (let b = 0; b <= 13; ++b) {
-                    const label = b === 0 ? "Nil" : b.toString();
-                    buttonsHtml += `
-                        <button class="bidButton" data-bid="${b}" style="
-                            background: #ffcc00;
-                            color: #111;
-                            border: none;
-                            padding: 0.35rem 0.6rem;
-                            margin: 0.15rem;
-                            border-radius: 0.25rem;
-                            font-size: 1.3vh;
-                            font-weight: bold;
-                            cursor: pointer;
-                            transition: transform 0.1s, background 0.2s;
-                        ">${label}</button>
-                    `;
-                }
-
-                this.centerStatusPanel_.innerHTML = `
-                    <div style="font-size: 1.3vh; opacity: 0.85; font-weight: bold; color: #ffcc00; letter-spacing: 0.05rem;">BIDDING PHASE</div>
-                    <div style="font-size: 1.4vh; margin-top: 0.2rem; color: #fff;">Choose your bid (0 is Nil):</div>
-                    <div style="display: flex; flex-wrap: wrap; justify-content: center; margin-top: 0.4rem; max-width: 15rem;">
-                        ${buttonsHtml}
-                    </div>
-                `;
-            } else {
-                this.centerStatusPanel_.innerHTML = `
-                    <div style="font-size: 1.3vh; opacity: 0.85; font-weight: bold; color: #ffcc00; letter-spacing: 0.05rem;">BIDDING PHASE</div>
-                    <div style="font-size: 1.5vh; margin-top: 0.2rem; color: #fff;">Waiting for <strong>${biddingPlayer.name}</strong> to bid...</div>
+        if (this.game_.isBiddingPhase && this.game_.waitingForHumanBid) {
+            let buttonsHtml = "";
+            for (let b = 0; b <= 13; ++b) {
+                const label = b === 0 ? "Nil" : b.toString();
+                buttonsHtml += `
+                    <button class="bidButton" data-bid="${b}">${label}</button>
                 `;
             }
-        } else {
-            this.centerStatusPanel_.innerHTML = `
-                <div style="font-size: 1.4vh; opacity: 0.85;">ROUND ${this.game_.roundNumber}</div>
-                <div style="font-size: 2.2vh; font-weight: bold; color: #ffffff; margin-top: 0.1rem;">
-                    Trump: &spades; Spades
+            this.showModal_(
+                "Choose Your Bid",
+                `
+                <div style="font-size: 1.5vh; margin-bottom: 0.8rem; color: #fff;">Choose your bid (0 is Nil):</div>
+                <div style="display: flex; flex-wrap: wrap; justify-content: center; max-width: 16rem;">
+                    ${buttonsHtml}
                 </div>
-                ${this.game_.waitingForHumanPlay ? `<div style="font-size: 1.3vh; color: #ffcc00; margin-top: 0.3rem; animation: pulse 1.5s infinite;">YOUR TURN</div>` : ""}
-            `;
+                `
+            );
+        } else {
+            this.hideModal_();
         }
 
         this.centerStatusPanel_.style.left = `${cx - 8}rem`;

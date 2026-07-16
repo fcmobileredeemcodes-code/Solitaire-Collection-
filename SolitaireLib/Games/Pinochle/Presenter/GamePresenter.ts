@@ -16,9 +16,8 @@ export class GamePresenter extends TrickTakingGamePresenterBase<Game> {
     constructor(game: Game, rootView: IView) {
         super(game, rootView);
 
-        // Enable clicks on centerStatusPanel for bidding, trump naming, and meld confirmation
-        this.centerStatusPanel_.style.pointerEvents = "auto";
-        this.centerStatusPanel_.addEventListener("click", (e) => {
+        // Enable clicks on modal body for bidding, trump naming, and meld confirmation
+        this.modalBody_.addEventListener("click", (e) => {
             const target = e.target as HTMLElement;
             if (!target) return;
 
@@ -177,83 +176,74 @@ export class GamePresenter extends TrickTakingGamePresenterBase<Game> {
             }
         }
 
-        // Update Center Status Panel
-        if (this.game_.isBiddingPhase) {
-            const biddingPlayer = this.game_.players[this.game_.biddingPlayerIndex];
-            const biddingPlayerName = biddingPlayer ? biddingPlayer.name : "";
+        // Update Center Status Panel and Modal Dialog
+        const trumpColor = {
+            [Suit.Spades]: "#ffffff",
+            [Suit.Hearts]: "#ff4d4d",
+            [Suit.Diamonds]: "#ff4d4d",
+            [Suit.Clubs]: "#ffffff",
+            [Suit.None]: "#ffd700",
+        }[this.game_.trumpSuit] || "#ffffff";
 
-            if (this.game_.waitingForHumanBid) {
-                const nextBid = Math.max(20, this.game_.currentHighestBid + 1);
+        const winnerPlayer = this.game_.players[this.game_.auctionWinnerIndex];
+        const bidWinnerLabel = (winnerPlayer && winnerPlayer.teamId === "TeamA") ? "Team A (You)" : "Team B";
 
-                let buttonsHtml = `
-                    <button class="bidActionButton" data-action="pass" style="
-                        background: #ff4d4d; color: #fff; border: none; padding: 0.4rem 0.8rem; margin: 0.2rem;
-                        border-radius: 0.3rem; font-size: 1.4vh; font-weight: bold; cursor: pointer;
-                    ">Pass</button>
+        this.centerStatusPanel_.innerHTML = `
+            <div style="font-size: 1.3vh; opacity: 0.85;">ROUND ${this.game_.roundNumber}</div>
+            <div style="font-size: 2.1vh; font-weight: bold; color: ${trumpColor}; margin-top: 0.1rem;">
+                Trump: ${this.getSuitSymbolHtml_(this.game_.trumpSuit)} ${this.getSuitName_(this.game_.trumpSuit)}
+            </div>
+            <div style="font-size: 1.1vh; opacity: 0.8; margin-top: 0.1rem;">
+                Auction Bid: <strong>${this.game_.finalBid}</strong> by ${bidWinnerLabel}
+            </div>
+            ${this.game_.waitingForHumanPlay ? `<div style="font-size: 1.3vh; color: #ffcc00; margin-top: 0.3rem; animation: pulse 1.5s infinite;">YOUR TURN</div>` : ""}
+            ${(this.game_.isBiddingPhase && !this.game_.waitingForHumanBid) ? `<div style="font-size: 1.3vh; color: #aaa; margin-top: 0.3rem;">Bidding...</div>` : ""}
+            ${(this.game_.isNamingTrumpPhase && !this.game_.waitingForHumanTrump) ? `<div style="font-size: 1.3vh; color: #aaa; margin-top: 0.3rem;">Naming Trump...</div>` : ""}
+        `;
 
-                    <button class="bidActionButton" data-action="bid" data-amount="${nextBid}" style="
-                        background: #00cc66; color: #fff; border: none; padding: 0.4rem 0.8rem; margin: 0.2rem;
-                        border-radius: 0.3rem; font-size: 1.4vh; font-weight: bold; cursor: pointer;
-                    ">Bid ${nextBid}</button>
+        this.centerStatusPanel_.style.left = `${cx - 8}rem`;
+        this.centerStatusPanel_.style.top = `${cy - 3}rem`;
+        this.centerStatusPanel_.style.width = "16rem";
+        this.centerStatusPanel_.style.maxHeight = "none";
 
-                    <button class="bidActionButton" data-action="bid" data-amount="${nextBid + 5}" style="
-                        background: #33a3ff; color: #fff; border: none; padding: 0.4rem 0.8rem; margin: 0.2rem;
-                        border-radius: 0.3rem; font-size: 1.4vh; font-weight: bold; cursor: pointer;
-                    ">Bid ${nextBid + 5}</button>
-
-                    <button class="bidActionButton" data-action="bid" data-amount="${nextBid + 10}" style="
-                        background: #9b5de5; color: #fff; border: none; padding: 0.4rem 0.8rem; margin: 0.2rem;
-                        border-radius: 0.3rem; font-size: 1.4vh; font-weight: bold; cursor: pointer;
-                    ">Bid ${nextBid + 10}</button>
-                `;
-
-                this.centerStatusPanel_.innerHTML = `
-                    <div style="font-size: 1.3vh; opacity: 0.85; font-weight: bold; color: #ffcc00; letter-spacing: 0.05rem;">BIDDING AUCTION</div>
-                    <div style="font-size: 1.4vh; margin-top: 0.2rem; color: #fff;">
-                        ${this.game_.currentHighestBid > 0 ? `Current bid: <strong>${this.game_.currentHighestBid}</strong>` : "Opening bid (min 20)"}
-                    </div>
-                    <div style="display: flex; flex-wrap: wrap; justify-content: center; margin-top: 0.5rem; max-width: 16rem;">
-                        ${buttonsHtml}
-                    </div>
-                `;
-            } else {
-                this.centerStatusPanel_.innerHTML = `
-                    <div style="font-size: 1.3vh; opacity: 0.85; font-weight: bold; color: #ffcc00; letter-spacing: 0.05rem;">BIDDING AUCTION</div>
-                    <div style="font-size: 1.5vh; margin-top: 0.2rem; color: #fff;">Waiting for <strong>${biddingPlayerName}</strong> to bid...</div>
-                `;
-            }
-        } else if (this.game_.isNamingTrumpPhase) {
-            const winner = this.game_.players[this.game_.auctionWinnerIndex];
-            const winnerName = winner ? winner.name : "";
-
-            if (this.game_.waitingForHumanTrump) {
-                let buttonsHtml = "";
-                const suits = [Suit.Spades, Suit.Hearts, Suit.Diamonds, Suit.Clubs];
-                for (const s of suits) {
-                    const symbol = this.getSuitSymbolHtml_(s);
-                    buttonsHtml += `
-                        <button class="trumpActionButton" data-suit="${s}" style="
-                            background: #ffd700; color: #111; border: none; padding: 0.4rem 0.8rem; margin: 0.2rem;
-                            border-radius: 0.3rem; font-size: 1.5vh; font-weight: bold; cursor: pointer;
-                        ">${symbol}</button>
-                    `;
-                }
-
-                this.centerStatusPanel_.innerHTML = `
-                    <div style="font-size: 1.3vh; opacity: 0.85; font-weight: bold; color: #ffcc00; letter-spacing: 0.05rem;">CHOOSE TRUMP</div>
-                    <div style="font-size: 1.4vh; margin-top: 0.2rem; color: #fff;">You won the auction with <strong>${this.game_.finalBid}</strong>!</div>
-                    <div style="display: flex; justify-content: center; margin-top: 0.5rem;">
-                        ${buttonsHtml}
-                    </div>
-                `;
-            } else {
-                this.centerStatusPanel_.innerHTML = `
-                    <div style="font-size: 1.3vh; opacity: 0.85; font-weight: bold; color: #ffcc00; letter-spacing: 0.05rem;">TRUMP NAMING</div>
-                    <div style="font-size: 1.5vh; margin-top: 0.2rem; color: #fff;">Waiting for <strong>${winnerName}</strong> to choose Trump...</div>
+        if (this.game_.isBiddingPhase && this.game_.waitingForHumanBid) {
+            const nextBid = Math.max(20, this.game_.currentHighestBid + 1);
+            let buttonsHtml = `
+                <button class="bidActionButton" data-action="pass">Pass</button>
+                <button class="bidActionButton" data-action="bid" data-amount="${nextBid}">Bid ${nextBid}</button>
+                <button class="bidActionButton" data-action="bid" data-amount="${nextBid + 5}">Bid ${nextBid + 5}</button>
+                <button class="bidActionButton" data-action="bid" data-amount="${nextBid + 10}">Bid ${nextBid + 10}</button>
+            `;
+            this.showModal_(
+                "Bidding Auction",
+                `
+                <div style="font-size: 1.5vh; margin-bottom: 0.8rem; color: #fff;">
+                    ${this.game_.currentHighestBid > 0 ? `Current bid: <strong>${this.game_.currentHighestBid}</strong>` : "Opening bid (min 20)"}
+                </div>
+                <div style="display: flex; flex-wrap: wrap; justify-content: center; max-width: 16rem;">
+                    ${buttonsHtml}
+                </div>
+                `
+            );
+        } else if (this.game_.isNamingTrumpPhase && this.game_.waitingForHumanTrump) {
+            let buttonsHtml = "";
+            const suits = [Suit.Spades, Suit.Hearts, Suit.Diamonds, Suit.Clubs];
+            for (const s of suits) {
+                const symbol = this.getSuitSymbolHtml_(s);
+                buttonsHtml += `
+                    <button class="trumpActionButton" data-suit="${s}">${symbol}</button>
                 `;
             }
+            this.showModal_(
+                "Choose Trump",
+                `
+                <div style="font-size: 1.5vh; margin-bottom: 0.8rem; color: #fff;">You won the auction with <strong>${this.game_.finalBid}</strong>!</div>
+                <div style="display: flex; justify-content: center;">
+                    ${buttonsHtml}
+                </div>
+                `
+            );
         } else if (this.game_.isMeldPhase) {
-            // Dedicated meld-reveal display showing each team's declared melds and point total before play begins
             const teamAMeldsStr = (this.game_.playerMelds[0] || []).concat(this.game_.playerMelds[2] || [])
                 .map(m => `${m.name} (${m.points})`)
                 .join(", ") || "No melds";
@@ -262,8 +252,9 @@ export class GamePresenter extends TrickTakingGamePresenterBase<Game> {
                 .map(m => `${m.name} (${m.points})`)
                 .join(", ") || "No melds";
 
-            this.centerStatusPanel_.innerHTML = `
-                <div style="font-size: 1.3vh; opacity: 0.85; font-weight: bold; color: #ffcc00; letter-spacing: 0.05rem;">MELD REVEAL PHASE</div>
+            this.showModal_(
+                "Meld Reveal Phase",
+                `
                 <div style="text-align: left; width: 100%; margin-top: 0.4rem; color: #fff; font-size: 1.3vh; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 0.3rem;">
                     <strong>Team A (You):</strong> <span style="color: #66ffbb;">+${this.game_.roundMeldPoints.TeamA} pts</span><br/>
                     <span style="opacity: 0.75; font-size: 1.1vh; line-height: 1.1rem;">${teamAMeldsStr}</span>
@@ -272,47 +263,11 @@ export class GamePresenter extends TrickTakingGamePresenterBase<Game> {
                     <strong>Team B:</strong> <span style="color: #ff9f1c;">+${this.game_.roundMeldPoints.TeamB} pts</span><br/>
                     <span style="opacity: 0.75; font-size: 1.1vh; line-height: 1.1rem;">${teamBMeldsStr}</span>
                 </div>
-                <button class="meldConfirmButton" style="
-                    background: #00cc66; color: #fff; border: none; padding: 0.45rem 1rem; margin-top: 0.6rem;
-                    border-radius: 0.3rem; font-size: 1.4vh; font-weight: bold; cursor: pointer; box-shadow: 0 0 10px rgba(0,204,102,0.5);
-                ">Start Play</button>
-            `;
+                <button class="meldConfirmButton">Start Play</button>
+                `
+            );
         } else {
-            // Standard trick play HUD
-            const trumpColor = {
-                [Suit.Spades]: "#ffffff",
-                [Suit.Hearts]: "#ff4d4d",
-                [Suit.Diamonds]: "#ff4d4d",
-                [Suit.Clubs]: "#ffffff",
-                [Suit.None]: "#ffd700",
-            }[this.game_.trumpSuit] || "#ffffff";
-
-            const winnerPlayer = this.game_.players[this.game_.auctionWinnerIndex];
-            const bidWinnerLabel = (winnerPlayer && winnerPlayer.teamId === "TeamA") ? "Team A (You)" : "Team B";
-
-            this.centerStatusPanel_.innerHTML = `
-                <div style="font-size: 1.3vh; opacity: 0.85;">ROUND ${this.game_.roundNumber}</div>
-                <div style="font-size: 2.1vh; font-weight: bold; color: ${trumpColor}; margin-top: 0.1rem;">
-                    Trump: ${this.getSuitSymbolHtml_(this.game_.trumpSuit)} ${this.getSuitName_(this.game_.trumpSuit)}
-                </div>
-                <div style="font-size: 1.1vh; opacity: 0.8; margin-top: 0.1rem;">
-                    Auction Bid: <strong>${this.game_.finalBid}</strong> by ${bidWinnerLabel}
-                </div>
-                ${this.game_.waitingForHumanPlay ? `<div style="font-size: 1.3vh; color: #ffcc00; margin-top: 0.3rem; animation: pulse 1.5s infinite;">YOUR TURN</div>` : ""}
-            `;
-        }
-
-        // Adjust dimensions to gracefully accommodate the meld reveal list
-        if (this.game_.isMeldPhase) {
-            this.centerStatusPanel_.style.left = `${cx - 10}rem`;
-            this.centerStatusPanel_.style.top = `${cy - 6.5}rem`;
-            this.centerStatusPanel_.style.width = "20rem";
-            this.centerStatusPanel_.style.maxHeight = "13rem";
-        } else {
-            this.centerStatusPanel_.style.left = `${cx - 8}rem`;
-            this.centerStatusPanel_.style.top = `${cy - 3}rem`;
-            this.centerStatusPanel_.style.width = "16rem";
-            this.centerStatusPanel_.style.maxHeight = "none";
+            this.hideModal_();
         }
 
         // Update logs panel

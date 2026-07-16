@@ -33,6 +33,11 @@ export abstract class TrickTakingGamePresenterBase<TGame extends TrickTakingGame
     protected centerStatusPanel_!: HTMLElement;
     protected logPanel_!: HTMLElement;
 
+    protected modalBackdrop_!: HTMLElement;
+    protected modalContent_!: HTMLElement;
+    protected modalTitle_!: HTMLElement;
+    protected modalBody_!: HTMLElement;
+
     constructor(game: TGame, rootView: IView) {
         this.game_ = game;
         this.rootView_ = rootView;
@@ -53,6 +58,7 @@ export abstract class TrickTakingGamePresenterBase<TGame extends TrickTakingGame
         window.addEventListener("keydown", this.onWindowKeyDown_);
 
         this.createStatusAndLogPanels_();
+        this.createModal_();
     }
 
     public dispose() {
@@ -67,6 +73,37 @@ export abstract class TrickTakingGamePresenterBase<TGame extends TrickTakingGame
         }
         this.centerStatusPanel_.remove();
         this.logPanel_.remove();
+        this.modalBackdrop_.remove();
+    }
+
+    private createModal_() {
+        this.modalBackdrop_ = document.createElement("div");
+        this.modalBackdrop_.className = "trickTakingModalBackdrop";
+        this.modalBackdrop_.style.display = "none";
+
+        this.modalContent_ = document.createElement("div");
+        this.modalContent_.className = "trickTakingModalContent";
+
+        this.modalTitle_ = document.createElement("div");
+        this.modalTitle_.className = "trickTakingModalTitle";
+
+        this.modalBody_ = document.createElement("div");
+        this.modalBody_.className = "trickTakingModalBody";
+
+        this.modalContent_.appendChild(this.modalTitle_);
+        this.modalContent_.appendChild(this.modalBody_);
+        this.modalBackdrop_.appendChild(this.modalContent_);
+        this.rootView_.element.appendChild(this.modalBackdrop_);
+    }
+
+    protected showModal_(title: string, bodyHtml: string) {
+        this.modalTitle_.innerText = title;
+        this.modalBody_.innerHTML = bodyHtml;
+        this.modalBackdrop_.style.display = "flex";
+    }
+
+    protected hideModal_() {
+        this.modalBackdrop_.style.display = "none";
     }
 
     public start() {

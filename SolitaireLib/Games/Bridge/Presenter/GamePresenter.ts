@@ -18,9 +18,8 @@ export class GamePresenter extends TrickTakingGamePresenterBase<Game> {
     constructor(game: Game, rootView: IView) {
         super(game, rootView);
 
-        // Listen for bid actions using event delegation
-        this.centerStatusPanel_.style.pointerEvents = "auto";
-        this.centerStatusPanel_.addEventListener("click", (e) => {
+        // Listen for bid actions using event delegation on the modal body
+        this.modalBody_.addEventListener("click", (e) => {
             const target = e.target as HTMLElement;
             if (!target) return;
 
@@ -216,162 +215,140 @@ export class GamePresenter extends TrickTakingGamePresenterBase<Game> {
             }
         }
 
-        // Update Center Status Panel
-        if (this.game_.isBiddingPhase) {
-            const biddingPlayer = this.game_.players[this.game_.biddingPlayerIndex];
+        // Update Center Status Panel and Modal
+        const suitSymbols = {
+            [Suit.Spades]: "&spades; Spades",
+            [Suit.Hearts]: "&hearts; Hearts",
+            [Suit.Diamonds]: "&diams; Diamonds",
+            [Suit.Clubs]: "&clubs; Clubs",
+            [Suit.None]: "No Trump",
+        };
+        const suitColors = {
+            [Suit.Spades]: "#ffffff",
+            [Suit.Hearts]: "#ff4d4d",
+            [Suit.Diamonds]: "#ff4d4d",
+            [Suit.Clubs]: "#ffffff",
+            [Suit.None]: "#ffd700",
+        };
+        const trumpSuit = this.game_.trumpSuit;
+        const trumpText = this.game_.contract ? (this.game_.contract.suit === "no-trump" ? "No Trump" : suitSymbols[trumpSuit]) : "No Trump";
+        const trumpColor = this.game_.contract ? (this.game_.contract.suit === "no-trump" ? "#ffd700" : suitColors[trumpSuit]) : "#ffffff";
 
-            if (this.game_.waitingForHumanBid) {
-                let levelButtonsHtml = "";
-                for (let l = 1; l <= 7; ++l) {
-                    const isSelected = (this.selectedLevel_ === l);
-                    levelButtonsHtml += `
-                        <button class="bridgeLevelButton" data-level="${l}" style="
-                            background: ${isSelected ? '#ffcc00' : '#444'};
-                            color: ${isSelected ? '#000' : '#fff'};
-                            border: none; padding: 0.35rem 0.55rem; margin: 0.1rem;
-                            border-radius: 0.25rem; font-size: 1.3vh; font-weight: bold; cursor: pointer;
-                        ">${l}</button>
-                    `;
-                }
+        let contractInfoStr = "";
+        if (this.game_.contract) {
+            const lastBid = this.game_.contract;
+            const declPlayer = this.game_.players[this.game_.declarerIndex];
+            const declTeamLabel = declPlayer ? (declPlayer.teamId === "TeamA" ? "Team A (You)" : "Team B (Opps)") : "";
 
-                let strainButtonsHtml = "";
-                if (this.selectedLevel_ !== null) {
-                    const strains = [
-                        { label: "♣", val: Suit.Clubs, color: "#fff" },
-                        { label: "♦", val: Suit.Diamonds, color: "#ff4d4d" },
-                        { label: "♥", val: Suit.Hearts, color: "#ff4d4d" },
-                        { label: "♠", val: Suit.Spades, color: "#fff" },
-                        { label: "NT", val: "no-trump", color: "#ffd700" }
-                    ];
+            let suffix = "";
+            if (this.game_.isRedoubled) suffix = " <span style='color:#b84dff;font-weight:bold;'>[Redoubled]</span>";
+            else if (this.game_.isDoubled) suffix = " <span style='color:#33a3ff;font-weight:bold;'>[Doubled]</span>";
 
-                    for (const str of strains) {
-                        const candidateBid = {
-                            level: this.selectedLevel_,
-                            suit: str.val,
-                            isPass: false,
-                            isDouble: false,
-                            isRedouble: false,
-                            bidderIndex: 0
-                        };
-
-                        const lastBid = this.game_.getLastNonPassBid();
-                        const isLegal = !lastBid || (this.game_.compareBids(candidateBid, lastBid) > 0);
-
-                        if (isLegal) {
-                            strainButtonsHtml += `
-                                <button class="bridgeStrainButton" data-strain="${str.val}" style="
-                                    background: #222; color: ${str.color}; border: 1px solid ${str.color};
-                                    padding: 0.35rem 0.6rem; margin: 0.1rem;
-                                    border-radius: 0.25rem; font-size: 1.3vh; font-weight: bold; cursor: pointer;
-                                ">${str.label}</button>
-                            `;
-                        }
-                    }
-                }
-
-                const canDouble = this.game_.canDouble(0);
-                const canRedouble = this.game_.canRedouble(0);
-
-                let actionButtonsHtml = `
-                    <button class="bridgePassButton" style="
-                        background: #ff4d4d; color: #fff; border: none; padding: 0.4rem 0.8rem; margin: 0.15rem;
-                        border-radius: 0.3rem; font-size: 1.3vh; font-weight: bold; cursor: pointer;
-                    ">Pass</button>
-                `;
-
-                if (canDouble) {
-                    actionButtonsHtml += `
-                        <button class="bridgeDoubleButton" style="
-                            background: #33a3ff; color: #fff; border: none; padding: 0.4rem 0.8rem; margin: 0.15rem;
-                            border-radius: 0.3rem; font-size: 1.3vh; font-weight: bold; cursor: pointer;
-                        ">Double</button>
-                    `;
-                }
-
-                if (canRedouble) {
-                    actionButtonsHtml += `
-                        <button class="bridgeRedoubleButton" style="
-                            background: #b84dff; color: #fff; border: none; padding: 0.4rem 0.8rem; margin: 0.15rem;
-                            border-radius: 0.3rem; font-size: 1.3vh; font-weight: bold; cursor: pointer;
-                        ">Redouble</button>
-                    `;
-                }
-
-                this.centerStatusPanel_.innerHTML = `
-                    <div style="font-size: 1.3vh; opacity: 0.85; font-weight: bold; color: #ffcc00; letter-spacing: 0.05rem;">YOUR BID</div>
-                    <div style="font-size: 1.3vh; color: #fff; margin-top: 0.2rem;">Choose Level:</div>
-                    <div style="display: flex; justify-content: center; margin-top: 0.2rem;">
-                        ${levelButtonsHtml}
-                    </div>
-                    ${this.selectedLevel_ !== null ? `
-                        <div style="font-size: 1.3vh; color: #fff; margin-top: 0.3rem;">Choose Strain:</div>
-                        <div style="display: flex; justify-content: center; margin-top: 0.2rem;">
-                            ${strainButtonsHtml || '<span style="color:#ff4d4d;font-size:1.2vh;">No legal strains for this level</span>'}
-                        </div>
-                    ` : ""}
-                    <div style="display: flex; justify-content: center; margin-top: 0.5rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 0.4rem;">
-                        ${actionButtonsHtml}
-                    </div>
-                `;
-            } else {
-                this.centerStatusPanel_.innerHTML = `
-                    <div style="font-size: 1.3vh; opacity: 0.85; font-weight: bold; color: #ffcc00; letter-spacing: 0.05rem;">BIDDING PHASE</div>
-                    <div style="font-size: 1.5vh; margin-top: 0.2rem; color: #fff;">Waiting for <strong>${biddingPlayer.name}</strong> to bid...</div>
-                `;
-            }
-        } else {
-            const suitSymbols = {
-                [Suit.Spades]: "&spades; Spades",
-                [Suit.Hearts]: "&hearts; Hearts",
-                [Suit.Diamonds]: "&diams; Diamonds",
-                [Suit.Clubs]: "&clubs; Clubs",
-                [Suit.None]: "No Trump",
-            };
-            const suitColors = {
-                [Suit.Spades]: "#ffffff",
-                [Suit.Hearts]: "#ff4d4d",
-                [Suit.Diamonds]: "#ff4d4d",
-                [Suit.Clubs]: "#ffffff",
-                [Suit.None]: "#ffd700",
-            };
-            const trumpSuit = this.game_.trumpSuit;
-            const trumpText = this.game_.contract ? (this.game_.contract.suit === "no-trump" ? "No Trump" : suitSymbols[trumpSuit]) : "No Trump";
-            const trumpColor = this.game_.contract ? (this.game_.contract.suit === "no-trump" ? "#ffd700" : suitColors[trumpSuit]) : "#ffffff";
-
-            let contractInfoStr = "";
-            if (this.game_.contract) {
-                const lastBid = this.game_.contract;
-                const declPlayer = this.game_.players[this.game_.declarerIndex];
-                const declTeamLabel = declPlayer ? (declPlayer.teamId === "TeamA" ? "Team A (You)" : "Team B (Opps)") : "";
-
-                let suffix = "";
-                if (this.game_.isRedoubled) suffix = " <span style='color:#b84dff;font-weight:bold;'>[Redoubled]</span>";
-                else if (this.game_.isDoubled) suffix = " <span style='color:#33a3ff;font-weight:bold;'>[Doubled]</span>";
-
-                contractInfoStr = `
-                    <div style="font-size: 1.2vh; color: #66ffbb; margin-top: 0.1rem;">Declarer: ${declTeamLabel}</div>
-                    <div style="font-size: 1.3vh; color: #fff; margin-top: 0.1rem;">Contract Level: ${lastBid.level} ${suffix}</div>
-                `;
-            }
-
-            const activePlayer = this.game_.players[this.game_.activePlayerIndex];
-            const turnLabel = this.game_.waitingForHumanPlay
-                ? (this.game_.activePlayerIndex === this.game_.dummyIndex ? `<div style="font-size: 1.3vh; color: #ff3333; margin-top: 0.3rem; animation: pulse 1.5s infinite; font-weight:bold;">PLAY FROM DUMMY</div>` : `<div style="font-size: 1.3vh; color: #ffcc00; margin-top: 0.3rem; animation: pulse 1.5s infinite;">YOUR TURN</div>`)
-                : `<div style="font-size: 1.3vh; color: #aaa; margin-top: 0.3rem;">Turn: ${activePlayer ? activePlayer.name : ""}</div>`;
-
-            this.centerStatusPanel_.innerHTML = `
-                <div style="font-size: 1.4vh; opacity: 0.85;">ROUND ${this.game_.roundNumber}</div>
-                <div style="font-size: 2.1vh; font-weight: bold; color: ${trumpColor}; margin-top: 0.1rem;">
-                    Trump: ${trumpText}
-                </div>
-                ${contractInfoStr}
-                ${turnLabel}
+            contractInfoStr = `
+                <div style="font-size: 1.2vh; color: #66ffbb; margin-top: 0.1rem;">Declarer: ${declTeamLabel}</div>
+                <div style="font-size: 1.3vh; color: #fff; margin-top: 0.1rem;">Contract Level: ${lastBid.level} ${suffix}</div>
             `;
         }
+
+        const activePlayer = this.game_.players[this.game_.activePlayerIndex];
+        const turnLabel = this.game_.waitingForHumanPlay
+            ? (this.game_.activePlayerIndex === this.game_.dummyIndex ? `<div style="font-size: 1.3vh; color: #ff3333; margin-top: 0.3rem; animation: pulse 1.5s infinite; font-weight:bold;">PLAY FROM DUMMY</div>` : `<div style="font-size: 1.3vh; color: #ffcc00; margin-top: 0.3rem; animation: pulse 1.5s infinite;">YOUR TURN</div>`)
+            : `<div style="font-size: 1.3vh; color: #aaa; margin-top: 0.3rem;">Turn: ${activePlayer ? activePlayer.name : ""}</div>`;
+
+        this.centerStatusPanel_.innerHTML = `
+            <div style="font-size: 1.4vh; opacity: 0.85;">ROUND ${this.game_.roundNumber}</div>
+            <div style="font-size: 2.1vh; font-weight: bold; color: ${trumpColor}; margin-top: 0.1rem;">
+                Trump: ${trumpText}
+            </div>
+            ${contractInfoStr}
+            ${turnLabel}
+            ${(this.game_.isBiddingPhase && !this.game_.waitingForHumanBid) ? `<div style="font-size: 1.3vh; color: #aaa; margin-top: 0.3rem;">Bidding...</div>` : ""}
+        `;
 
         this.centerStatusPanel_.style.left = `${cx - 8}rem`;
         this.centerStatusPanel_.style.top = `${cy - 4}rem`;
         this.centerStatusPanel_.style.width = "16rem";
+
+        if (this.game_.isBiddingPhase && this.game_.waitingForHumanBid) {
+            let levelButtonsHtml = "";
+            for (let l = 1; l <= 7; ++l) {
+                const isSelected = (this.selectedLevel_ === l);
+                levelButtonsHtml += `
+                    <button class="bridgeLevelButton ${isSelected ? 'selected' : ''}" data-level="${l}">${l}</button>
+                `;
+            }
+
+            let strainButtonsHtml = "";
+            if (this.selectedLevel_ !== null) {
+                const strains = [
+                    { label: "♣", val: Suit.Clubs, color: "#fff" },
+                    { label: "♦", val: Suit.Diamonds, color: "#ff4d4d" },
+                    { label: "♥", val: Suit.Hearts, color: "#ff4d4d" },
+                    { label: "♠", val: Suit.Spades, color: "#fff" },
+                    { label: "NT", val: "no-trump", color: "#ffd700" }
+                ];
+
+                for (const str of strains) {
+                    const candidateBid = {
+                        level: this.selectedLevel_,
+                        suit: str.val,
+                        isPass: false,
+                        isDouble: false,
+                        isRedouble: false,
+                        bidderIndex: 0
+                    };
+
+                    const lastBid = this.game_.getLastNonPassBid();
+                    const isLegal = !lastBid || (this.game_.compareBids(candidateBid, lastBid) > 0);
+
+                    if (isLegal) {
+                        strainButtonsHtml += `
+                            <button class="bridgeStrainButton" data-strain="${str.val}" style="color: ${str.color}; border-color: ${str.color};">${str.label}</button>
+                        `;
+                    }
+                }
+            }
+
+            const canDouble = this.game_.canDouble(0);
+            const canRedouble = this.game_.canRedouble(0);
+
+            let actionButtonsHtml = `
+                <button class="bridgePassButton">Pass</button>
+            `;
+
+            if (canDouble) {
+                actionButtonsHtml += `
+                    <button class="bridgeDoubleButton">Double</button>
+                `;
+            }
+
+            if (canRedouble) {
+                actionButtonsHtml += `
+                    <button class="bridgeRedoubleButton">Redouble</button>
+                `;
+            }
+
+            this.showModal_(
+                "Your Bid",
+                `
+                <div style="font-size: 1.3vh; color: #fff; margin-bottom: 0.4rem;">Choose Level:</div>
+                <div style="display: flex; justify-content: center; margin-bottom: 0.6rem;">
+                    ${levelButtonsHtml}
+                </div>
+                ${this.selectedLevel_ !== null ? `
+                    <div style="font-size: 1.3vh; color: #fff; margin-bottom: 0.4rem;">Choose Strain:</div>
+                    <div style="display: flex; justify-content: center; margin-bottom: 0.6rem;">
+                        ${strainButtonsHtml || '<span style="color:#ff4d4d;font-size:1.2vh;">No legal strains for this level</span>'}
+                    </div>
+                ` : ""}
+                <div style="display: flex; justify-content: center; margin-top: 0.5rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 0.6rem; gap: 0.4rem;">
+                    ${actionButtonsHtml}
+                </div>
+                `
+            );
+        } else {
+            this.hideModal_();
+        }
 
         // Update logs panel
         this.logPanel_.innerHTML = this.game_.gameLog
