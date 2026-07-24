@@ -19,6 +19,31 @@ export abstract class GamePresenterBase<TGame extends IGameBase> implements IGam
 
     protected abstract get saveDataKey_(): string;
 
+    private getActiveGameId_(): string {
+        const hash = window.location.hash || "";
+        if (!hash || hash === "#") return "";
+        const qPos = hash.indexOf("?");
+        let gameKey = "";
+        if (qPos >= 0) {
+            gameKey = hash.substring(1, qPos);
+        } else if (hash.includes("&") || hash.includes("?") || hash.includes("=")) {
+            const params = new URLSearchParams(hash.substring(1));
+            gameKey = params.get("game") || "";
+        } else {
+            gameKey = hash.substring(1);
+        }
+        return gameKey.toLowerCase();
+    }
+
+    protected getLocalStorageKey_(): string {
+        const gameId = this.getActiveGameId_();
+        const baseKey = this.saveDataKey_;
+        if (gameId) {
+            return `solitaire_game_${gameId}_${baseKey}`;
+        }
+        return `solitaire_game_${baseKey}`;
+    }
+
     private readonly newGameButton_ = document.getElementById("newGameButton");
     private readonly undoButton_ = document.getElementById("undoButton");
     private readonly redoButton_ = document.getElementById("redoButton");
@@ -61,7 +86,7 @@ export abstract class GamePresenterBase<TGame extends IGameBase> implements IGam
     protected abstract onResize_(): void;
 
     public start() {
-        const saveData = window.localStorage.getItem(this.saveDataKey_);
+        const saveData = window.localStorage.getItem(this.getLocalStorageKey_());
         if (saveData && this.game_.deserialize(saveData)) {
             // state has been successfully loaded
         } else {
@@ -436,7 +461,7 @@ export abstract class GamePresenterBase<TGame extends IGameBase> implements IGam
                 this.operations_.shift();
 
                 try {
-                    window.localStorage.setItem(this.saveDataKey_, this.game_.serialize());
+                    window.localStorage.setItem(this.getLocalStorageKey_(), this.game_.serialize());
                 } catch (error) {
                     console.error("Failed to serialize game state.", error);
                 }

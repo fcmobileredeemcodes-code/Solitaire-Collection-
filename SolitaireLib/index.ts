@@ -127,6 +127,22 @@ window.addEventListener("load", () => {
 
     // Populate gameGrid
     gameInfos.forEach((info) => {
+        // Skip variants that end with '_easy' if they are exactly identical to their base game counterparts.
+        // The allowed list contains actual distinct easy variants. All other '_easy' variants are redundant
+        // because they only configure 'autoReveal' which is already true by default for all base games.
+        if (info.gameId.endsWith("_easy")) {
+            const allowedEasyIds = [
+                "klondike_draw_1_easy",
+                "klondike_draw_3_easy",
+                "easthaven_draw_1_easy",
+                "forty_thieves_easy",
+                "freecell_easy"
+            ];
+            if (!allowedEasyIds.includes(info.gameId)) {
+                return;
+            }
+        }
+
         const a = document.createElement("a");
         a.href = `#${info.gameId}`;
         a.className = "gameCard";
@@ -204,6 +220,11 @@ window.addEventListener("load", () => {
         const howToPlayContent = document.getElementById("howToPlayContent");
         if (howToPlayContent) {
             howToPlayContent.innerHTML = getHowToPlay(gameInfo.gameId);
+        }
+
+        const howToPlayTitle = document.getElementById("howToPlayTitle");
+        if (howToPlayTitle) {
+            howToPlayTitle.textContent = `How to Play ${gameInfo.gameName}`;
         }
 
         currentGame = gameInfo.gamePresenterFactory.createGame(tableHolder, params);
