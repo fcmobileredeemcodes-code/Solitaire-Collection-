@@ -145,80 +145,137 @@ export abstract class GameBase implements IGameBase {
         const startHash = this.getBoardStateHash_();
         const startState = this.serialize();
 
-        const openList: { hash: string; state: string; score: number }[] = [];
-        const visited = new Set<string>();
+        // Save and mute all callbacks to prevent DOM updates during solver search
+        const savedPileCallbacks = this.piles.map((p) => ({
+            pile: p,
+            cardsChanged: p.cardsChanged,
+            maxFanChanged: p.maxFanChanged,
+        }));
+        const savedCardCallbacks = this.cards.map((c) => ({
+            card: c,
+            pileChanged: c.pileChanged,
+            pileIndexChanged: c.pileIndexChanged,
+            faceUpChanged: c.faceUpChanged,
+        }));
+        const savedGameCallbacks = {
+            wonChanged: this.wonChanged,
+            gamesStartedChanged: this.gamesStartedChanged,
+            gamesWonChanged: this.gamesWonChanged,
+        };
 
-        const initialScore = this.wonCards.length;
-        openList.push({ hash: startHash, state: startState, score: initialScore });
-        visited.add(startHash);
+        for (const p of this.piles) {
+            p.cardsChanged = () => {};
+            p.maxFanChanged = () => {};
+        }
+        for (const c of this.cards) {
+            c.pileChanged = () => {};
+            c.pileIndexChanged = () => {};
+            c.faceUpChanged = () => {};
+        }
+        this.wonChanged = () => {};
+        this.gamesStartedChanged = () => {};
+        this.gamesWonChanged = () => {};
 
-        let statesVisited = 0;
-        const maxStates = 150;
+        let solvable = false;
 
-        while (openList.length > 0 && statesVisited < maxStates) {
-            openList.sort((a, b) => b.score - a.score);
-            const current = openList.shift()!;
-            statesVisited++;
+        try {
+            const openList: { hash: string; state: string; score: number }[] = [];
+            const visited = new Set<string>();
 
-            this.deserialize(current.state);
-            if (this.won) {
-                return true;
-            }
+            const initialScore = this.wonCards.length;
+            openList.push({ hash: startHash, state: startState, score: initialScore });
+            visited.add(startHash);
 
-            const possibleMoves: { type: string; card?: Card; pile?: Pile }[] = [];
+            let statesVisited = 0;
+            const maxStates = 150;
 
-            // 1. dropCard moves (for face-up cards only)
-            for (const card of this.cards) {
-                if (!card.faceUp) continue;
-                const dragInfo = this.canDrag(card);
-                if (dragInfo.canDrag) {
-                    for (const pile of this.piles) {
-                        if (this.previewDrop(card, pile)) {
-                            possibleMoves.push({ type: "drop", card, pile });
+            while (openList.length > 0 && statesVisited < maxStates) {
+                openList.sort((a, b) => b.score - a.score);
+                const current = openList.shift()!;
+                statesVisited++;
+
+                this.deserialize(current.state);
+                if (this.won) {
+                    solvable = true;
+                    break;
+                }
+
+                const possibleMoves: { type: string; card?: Card; pile?: Pile }[] = [];
+
+                // 1. dropCard moves (for face-up cards only)
+                for (const card of this.cards) {
+                    if (!card.faceUp) continue;
+                    const dragInfo = this.canDrag(card);
+                    if (dragInfo.canDrag) {
+                        for (const pile of this.piles) {
+                            if (this.previewDrop(card, pile)) {
+                                possibleMoves.push({ type: "drop", card, pile });
+                            }
                         }
                     }
                 }
-            }
 
-            // 2. cardPrimary moves (clicks on top cards of piles only)
-            for (const pile of this.piles) {
-                const topCard = pile.peek();
-                if (topCard) {
-                    possibleMoves.push({ type: "cardPrimary", card: topCard });
-                }
-            }
-
-            // 3. pilePrimary moves (pile clicks)
-            for (const pile of this.piles) {
-                possibleMoves.push({ type: "pilePrimary", pile });
-            }
-
-            for (const move of possibleMoves) {
-                this.deserialize(current.state);
-
-                if (move.type === "drop") {
-                    this.consumeGenerator_(this.dropCard(move.card!, move.pile!));
-                } else if (move.type === "cardPrimary") {
-                    this.consumeGenerator_(this.cardPrimary(move.card!));
-                } else if (move.type === "pilePrimary") {
-                    this.consumeGenerator_(this.pilePrimary(move.pile!));
+                // 2. cardPrimary moves (clicks on top cards of piles only)
+                for (const pile of this.piles) {
+                    const topCard = pile.peek();
+                    if (topCard) {
+                        possibleMoves.push({ type: "cardPrimary", card: topCard });
+                    }
                 }
 
-                if (this.won) {
-                    return true;
+                // 3. pilePrimary moves (pile clicks)
+                for (const pile of this.piles) {
+                    possibleMoves.push({ type: "pilePrimary", pile });
                 }
 
-                const nextHash = this.getBoardStateHash_();
-                if (nextHash !== current.hash && !visited.has(nextHash)) {
-                    visited.add(nextHash);
-                    const nextState = this.serialize();
-                    const nextScore = this.wonCards.length;
-                    openList.push({ hash: nextHash, state: nextState, score: nextScore });
+                for (const move of possibleMoves) {
+                    this.deserialize(current.state);
+
+                    if (move.type === "drop") {
+                        this.consumeGenerator_(this.dropCard(move.card!, move.pile!));
+                    } else if (move.type === "cardPrimary") {
+                        this.consumeGenerator_(this.cardPrimary(move.card!));
+                    } else if (move.type === "pilePrimary") {
+                        this.consumeGenerator_(this.pilePrimary(move.pile!));
+                    }
+
+                    if (this.won) {
+                        solvable = true;
+                        break;
+                    }
+
+                    const nextHash = this.getBoardStateHash_();
+                    if (nextHash !== current.hash && !visited.has(nextHash)) {
+                        visited.add(nextHash);
+                        const nextState = this.serialize();
+                        const nextScore = this.wonCards.length;
+                        openList.push({ hash: nextHash, state: nextState, score: nextScore });
+                    }
+                }
+                if (solvable) {
+                    break;
                 }
             }
+        } finally {
+            // Restore callbacks
+            for (const { pile, cardsChanged, maxFanChanged } of savedPileCallbacks) {
+                pile.cardsChanged = cardsChanged;
+                pile.maxFanChanged = maxFanChanged;
+            }
+            for (const { card, pileChanged, pileIndexChanged, faceUpChanged } of savedCardCallbacks) {
+                card.pileChanged = pileChanged;
+                card.pileIndexChanged = pileIndexChanged;
+                card.faceUpChanged = faceUpChanged;
+            }
+            this.wonChanged = savedGameCallbacks.wonChanged;
+            this.gamesStartedChanged = savedGameCallbacks.gamesStartedChanged;
+            this.gamesWonChanged = savedGameCallbacks.gamesWonChanged;
+
+            // Restore starting state with original callbacks active so views are updated
+            this.deserialize(startState);
         }
 
-        return false;
+        return solvable;
     }
 
     public *restart(seed: number) {
